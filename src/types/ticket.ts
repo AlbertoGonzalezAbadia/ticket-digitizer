@@ -9,4 +9,5 @@ export interface Ticket {
   id: string
   status: TicketStatus
   createdAt: string
+  imageBlob: Blob
 }

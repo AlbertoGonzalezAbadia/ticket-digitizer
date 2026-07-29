@@ -1,25 +1,47 @@
-import { useRef } from 'react'
+import { useRef, useState, type ChangeEvent } from 'react'
 import { SyncStatusBadge } from '../components/SyncStatusBadge'
+import { useTickets } from '../state/TicketsContext'
 
 interface CameraScreenProps {
   onCapture: () => void
 }
 
+type CaptureState = 'idle' | 'saving' | 'saved' | 'error'
+
+const STATUS_TEXT: Record<CaptureState, string> = {
+  idle: 'Toca para escanear un ticket',
+  saving: 'Guardando...',
+  saved: 'Guardado ✓',
+  error: 'No se pudo guardar. Inténtalo de nuevo.',
+}
+
 export function CameraScreen({ onCapture }: CameraScreenProps) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const { pendingCount, captureTicket } = useTickets()
+  const [state, setState] = useState<CaptureState>('idle')
 
-  const handleFileChange = () => {
-    // Capture -> IndexedDB queue + OCR pipeline lands in M2/M3.
-    // For now this confirms the native camera opens correctly on-device.
-    onCapture()
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
     if (inputRef.current) inputRef.current.value = ''
+    if (!file) return
+
+    setState('saving')
+    try {
+      await captureTicket(file)
+      setState('saved')
+      onCapture()
+    } catch {
+      setState('error')
+    } finally {
+      setTimeout(() => setState('idle'), 1500)
+    }
   }
 
   return (
     <div className="flex h-full flex-col items-center justify-between px-6 py-8">
       <div className="flex w-full items-center justify-between">
         <h1 className="text-lg font-semibold text-teal-950">Tickets</h1>
-        <SyncStatusBadge pendingCount={0} />
+        <SyncStatusBadge pendingCount={pendingCount} />
       </div>
 
       <div className="flex flex-col items-center gap-4">
@@ -29,12 +51,15 @@ export function CameraScreen({ onCapture }: CameraScreenProps) {
           accept="image/*"
           capture="environment"
           onChange={handleFileChange}
+          disabled={state === 'saving'}
           className="hidden"
           id="camera-input"
         />
         <label
           htmlFor="camera-input"
-          className="flex h-40 w-40 cursor-pointer items-center justify-center rounded-full bg-teal-700 text-white shadow-2xl shadow-teal-900/30 transition active:scale-95"
+          className={`flex h-40 w-40 items-center justify-center rounded-full bg-teal-700 text-white shadow-2xl shadow-teal-900/30 transition active:scale-95 ${
+            state === 'saving' ? 'pointer-events-none opacity-70' : 'cursor-pointer'
+          }`}
           aria-label="Hacer foto de un ticket"
         >
           <svg
@@ -53,7 +78,9 @@ export function CameraScreen({ onCapture }: CameraScreenProps) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 17.25a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z" />
           </svg>
         </label>
-        <p className="text-sm text-teal-900/60">Toca para escanear un ticket</p>
+        <p className={`text-sm ${state === 'error' ? 'text-red-600' : 'text-teal-900/60'}`}>
+          {STATUS_TEXT[state]}
+        </p>
       </div>
 
       <div className="h-10" />
