@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTickets } from '../state/TicketsContext'
 import { Button } from '../components/Button'
-import type { Ticket } from '../types/ticket'
+import { TICKET_CATEGORIES, type Ticket, type TicketCategory } from '../types/ticket'
 
 const STATUS_LABEL: Record<Ticket['status'], string> = {
   captured: 'Capturado',
@@ -14,6 +14,10 @@ const STATUS_LABEL: Record<Ticket['status'], string> = {
 function formatDate(iso: string) {
   const date = new Date(iso)
   return `${date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })} ${date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`
+}
+
+function ticketDay(ticket: Ticket): string {
+  return ticket.fields?.date || ticket.createdAt.slice(0, 10)
 }
 
 function OcrStatus({ ticket }: { ticket: Ticket }) {
@@ -62,20 +66,28 @@ function SyncButton({ ticket }: { ticket: Ticket }) {
 
 function TicketRow({ ticket }: { ticket: Ticket }) {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const isPdf = ticket.imageBlob.type === 'application/pdf'
 
   useEffect(() => {
+    if (isPdf) return
     const url = URL.createObjectURL(ticket.imageBlob)
     setImageUrl(url)
     return () => URL.revokeObjectURL(url)
-  }, [ticket.imageBlob])
+  }, [ticket.imageBlob, isPdf])
 
   const { fields } = ticket
   const hasFields = ticket.status !== 'captured' && fields
 
   return (
     <li className="flex items-start gap-3 rounded-xl border border-teal-100 bg-white p-3">
-      {imageUrl && (
-        <img src={imageUrl} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
+      {isPdf ? (
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-xs font-semibold text-teal-700">
+          PDF
+        </div>
+      ) : (
+        imageUrl && (
+          <img src={imageUrl} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
+        )
       )}
       <div className="min-w-0 flex-1">
         {hasFields ? (
@@ -104,10 +116,63 @@ function TicketRow({ ticket }: { ticket: Ticket }) {
 
 export function HistoryScreen() {
   const { tickets, loading } = useTickets()
+  const [dateFilter, setDateFilter] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<TicketCategory | ''>('')
+
+  const filtered = useMemo(() => {
+    return tickets.filter((t) => {
+      if (dateFilter && ticketDay(t) !== dateFilter) return false
+      if (categoryFilter && t.fields?.category !== categoryFilter) return false
+      return true
+    })
+  }, [tickets, dateFilter, categoryFilter])
+
+  const hasActiveFilters = dateFilter !== '' || categoryFilter !== ''
 
   return (
     <div className="flex h-full flex-col px-6 py-8">
-      <h1 className="mb-6 text-lg font-semibold text-teal-950">Historial</h1>
+      <h1 className="mb-4 text-lg font-semibold text-teal-950">Historial</h1>
+
+      {tickets.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-end gap-2">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-teal-900/70">Día</span>
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="rounded-lg border border-teal-200 bg-white px-2 py-1.5 text-sm text-teal-950"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-teal-900/70">Categoría</span>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value as TicketCategory | '')}
+              className="rounded-lg border border-teal-200 bg-white px-2 py-1.5 text-sm text-teal-950"
+            >
+              <option value="">Todas</option>
+              {TICKET_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </label>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={() => {
+                setDateFilter('')
+                setCategoryFilter('')
+              }}
+              className="mb-1.5 text-xs font-medium text-teal-700 underline underline-offset-2"
+            >
+              Limpiar filtros
+            </button>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <p className="text-center text-sm text-teal-900/50">Cargando...</p>
@@ -116,9 +181,13 @@ export function HistoryScreen() {
           <p>Todavía no hay tickets guardados.</p>
           <p className="text-sm">Los tickets que escanees aparecerán aquí.</p>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center text-teal-900/50">
+          <p>Ningún ticket coincide con los filtros.</p>
+        </div>
       ) : (
         <ul className="flex flex-col gap-2 overflow-y-auto">
-          {tickets.map((ticket) => (
+          {filtered.map((ticket) => (
             <TicketRow key={ticket.id} ticket={ticket} />
           ))}
         </ul>

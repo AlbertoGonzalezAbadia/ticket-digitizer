@@ -11,6 +11,7 @@ import {
 } from '../lib/db/ticketRepository'
 import { prepareCapturedImage } from '../lib/image/prepareImage'
 import { recognizeTicket } from '../lib/ocr/tesseractClient'
+import { extractPdfText, renderPdfPageToBlob } from '../lib/pdf/extractPdfText'
 import { ensureAccessToken } from '../lib/google/auth'
 import { syncTicket } from '../lib/sync/syncTicket'
 
@@ -42,12 +43,36 @@ export function TicketsProvider({ children }: { children: ReactNode }) {
 
   const captureTicket = useCallback(
     async (file: File) => {
-      const imageBlob = await prepareCapturedImage(file)
-      const ticket = await addCapturedTicket(imageBlob)
+      const isPdf = file.type === 'application/pdf'
+      // A digital PDF invoice needs no downscale/reorientation — only a
+      // camera photo does.
+      const storedBlob = isPdf ? file : await prepareCapturedImage(file)
+
+      const ticket = await addCapturedTicket(storedBlob)
       await refresh()
 
       try {
-        const { text, confidence } = await recognizeTicket(imageBlob)
+        let text: string
+        let confidence: number
+        if (isPdf) {
+          const extracted = await extractPdfText(storedBlob)
+          if (extracted.hasEmbeddedText) {
+            // Real text layer — no OCR needed, and it's fully accurate.
+            text = extracted.text
+            confidence = 100
+          } else {
+            // Scanned PDF with no text layer: fall back to rendering the
+            // page and running it through the same OCR as a photo.
+            const rendered = await renderPdfPageToBlob(storedBlob)
+            const result = await recognizeTicket(rendered)
+            text = result.text
+            confidence = result.confidence
+          }
+        } else {
+          const result = await recognizeTicket(storedBlob)
+          text = result.text
+          confidence = result.confidence
+        }
         await updateTicketOcr(ticket.id, text, confidence)
       } catch {
         // Leave the ticket without OCR text; the Confirm screen still lets

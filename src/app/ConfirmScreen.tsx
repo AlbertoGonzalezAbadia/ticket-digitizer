@@ -51,6 +51,8 @@ export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
     return null
   }
 
+  const isPdf = ticket.imageBlob.type === 'application/pdf'
+
   const update = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }))
 
@@ -78,7 +80,15 @@ export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
     <div className="flex h-full flex-col overflow-y-auto px-6 py-6">
       <h1 className="mb-4 text-lg font-semibold text-teal-950">Confirmar ticket</h1>
 
-      {imageUrl && (
+      {imageUrl && isPdf && (
+        <div className="mb-4">
+          <embed src={imageUrl} type="application/pdf" className="h-48 w-full rounded-xl bg-teal-50" />
+          <a href={imageUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs text-teal-700 underline">
+            Abrir PDF
+          </a>
+        </div>
+      )}
+      {imageUrl && !isPdf && (
         <img src={imageUrl} alt="Ticket capturado" className="mb-4 max-h-48 w-full rounded-xl object-contain bg-teal-50" />
       )}
 
@@ -162,7 +172,7 @@ export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
           {saving ? 'Guardando...' : 'Guardar'}
         </Button>
         <Button variant="secondary" onClick={handleRetake} disabled={saving} className="w-full py-2.5">
-          Repetir foto
+          {isPdf ? 'Descartar' : 'Repetir foto'}
         </Button>
       </div>
     </div>

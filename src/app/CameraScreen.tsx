@@ -15,13 +15,14 @@ const STATUS_TEXT: Record<CaptureState, string> = {
 }
 
 export function CameraScreen({ onCaptured }: CameraScreenProps) {
-  const inputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const uploadInputRef = useRef<HTMLInputElement>(null)
   const { pendingCount, captureTicket } = useTickets()
   const [state, setState] = useState<CaptureState>('idle')
 
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (inputRef.current) inputRef.current.value = ''
+    e.target.value = ''
     if (!file) return
 
     setState('processing')
@@ -44,7 +45,7 @@ export function CameraScreen({ onCaptured }: CameraScreenProps) {
 
       <div className="flex flex-col items-center gap-4">
         <input
-          ref={inputRef}
+          ref={cameraInputRef}
           type="file"
           accept="image/*"
           capture="environment"
@@ -95,6 +96,24 @@ export function CameraScreen({ onCaptured }: CameraScreenProps) {
         <p className={`text-sm ${state === 'error' ? 'text-red-600' : 'text-teal-900/60'}`}>
           {STATUS_TEXT[state]}
         </p>
+
+        <input
+          ref={uploadInputRef}
+          type="file"
+          accept="image/*,application/pdf"
+          onChange={handleFileChange}
+          disabled={state === 'processing'}
+          className="hidden"
+          id="upload-input"
+        />
+        <label
+          htmlFor="upload-input"
+          className={`text-sm font-medium text-teal-700 underline underline-offset-2 ${
+            state === 'processing' ? 'pointer-events-none opacity-50' : 'cursor-pointer'
+          }`}
+        >
+          Subir factura (PDF o imagen)
+        </label>
       </div>
 
       <div className="h-10" />

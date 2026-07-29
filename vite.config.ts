@@ -51,6 +51,18 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
+          {
+            // Same lazy-load treatment for the PDF.js worker (~1.2MB) used
+            // when reading digital invoices — fetched on first PDF, cached
+            // forever after.
+            urlPattern: ({ url }) => /pdf\.worker/i.test(url.pathname),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'pdf-engine-cache',
+              expiration: { maxEntries: 5, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
       devOptions: {

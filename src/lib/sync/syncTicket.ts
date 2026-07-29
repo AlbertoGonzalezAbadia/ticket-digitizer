@@ -24,7 +24,8 @@ export async function syncTicket(ticket: Ticket): Promise<void> {
   const createdAt = new Date(ticket.createdAt)
   const stamp = createdAt.toISOString().replace(/[-:]/g, '').replace('T', '_').slice(0, 15)
   const vendorSlug = slugify(ticket.fields?.vendor ?? 'ticket')
-  const fileName = `${stamp}_${vendorSlug}_${ticket.id.slice(0, 8)}.jpg`
+  const extension = ticket.imageBlob.type === 'application/pdf' ? 'pdf' : 'jpg'
+  const fileName = `${stamp}_${vendorSlug}_${ticket.id.slice(0, 8)}.${extension}`
 
   const { webViewLink } = await uploadImage(fileName, ticket.imageBlob, folderId)
 
