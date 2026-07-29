@@ -1,6 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
-import type { Ticket } from '../types/ticket'
-import { addCapturedTicket, getAllTickets, updateTicketOcr } from '../lib/db/ticketRepository'
+import type { Ticket, TicketFields } from '../types/ticket'
+import {
+  addCapturedTicket,
+  confirmTicket as confirmTicketInDb,
+  deleteTicket as deleteTicketInDb,
+  getAllTickets,
+  updateTicketOcr,
+} from '../lib/db/ticketRepository'
 import { prepareCapturedImage } from '../lib/image/prepareImage'
 import { recognizeTicket } from '../lib/ocr/tesseractClient'
 
@@ -8,7 +14,10 @@ interface TicketsContextValue {
   tickets: Ticket[]
   pendingCount: number
   loading: boolean
-  captureTicket: (file: File) => Promise<void>
+  /** Saves the photo, runs OCR, and resolves once the ticket is ready to confirm. */
+  captureTicket: (file: File) => Promise<string>
+  confirmTicket: (id: string, fields: TicketFields) => Promise<void>
+  discardTicket: (id: string) => Promise<void>
 }
 
 const TicketsContext = createContext<TicketsContextValue | null>(null)
@@ -25,35 +34,48 @@ export function TicketsProvider({ children }: { children: ReactNode }) {
     refresh().finally(() => setLoading(false))
   }, [refresh])
 
-  const runOcr = useCallback(
-    async (ticketId: string, imageBlob: Blob) => {
-      try {
-        const { text, confidence } = await recognizeTicket(imageBlob)
-        await updateTicketOcr(ticketId, text, confidence)
-      } catch {
-        // Leave the ticket without OCR text; the Confirm screen (M4) lets
-        // the user fill fields in by hand when recognition fails.
-      } finally {
-        await refresh()
-      }
-    },
-    [refresh],
-  )
-
   const captureTicket = useCallback(
     async (file: File) => {
       const imageBlob = await prepareCapturedImage(file)
       const ticket = await addCapturedTicket(imageBlob)
       await refresh()
-      void runOcr(ticket.id, imageBlob)
+
+      try {
+        const { text, confidence } = await recognizeTicket(imageBlob)
+        await updateTicketOcr(ticket.id, text, confidence)
+      } catch {
+        // Leave the ticket without OCR text; the Confirm screen still lets
+        // the user fill fields in by hand when recognition fails.
+      }
+      await refresh()
+
+      return ticket.id
     },
-    [refresh, runOcr],
+    [refresh],
+  )
+
+  const confirmTicket = useCallback(
+    async (id: string, fields: TicketFields) => {
+      await confirmTicketInDb(id, fields)
+      await refresh()
+    },
+    [refresh],
+  )
+
+  const discardTicket = useCallback(
+    async (id: string) => {
+      await deleteTicketInDb(id)
+      await refresh()
+    },
+    [refresh],
   )
 
   const pendingCount = tickets.filter((t) => t.status !== 'synced').length
 
   return (
-    <TicketsContext.Provider value={{ tickets, pendingCount, loading, captureTicket }}>
+    <TicketsContext.Provider
+      value={{ tickets, pendingCount, loading, captureTicket, confirmTicket, discardTicket }}
+    >
       {children}
     </TicketsContext.Provider>
   )

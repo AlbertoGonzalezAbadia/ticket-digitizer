@@ -1,5 +1,5 @@
 import { getDb, TICKETS_STORE } from './indexedDb'
-import type { Ticket } from '../../types/ticket'
+import type { Ticket, TicketFields } from '../../types/ticket'
 
 export async function addCapturedTicket(imageBlob: Blob): Promise<Ticket> {
   const ticket: Ticket = {
@@ -28,4 +28,16 @@ export async function updateTicketOcr(
   const ticket = await db.get(TICKETS_STORE, id)
   if (!ticket) return
   await db.put(TICKETS_STORE, { ...ticket, ocrText, ocrConfidence })
+}
+
+export async function confirmTicket(id: string, fields: TicketFields): Promise<void> {
+  const db = await getDb()
+  const ticket = await db.get(TICKETS_STORE, id)
+  if (!ticket) return
+  await db.put(TICKETS_STORE, { ...ticket, fields, status: 'confirmed' })
+}
+
+export async function deleteTicket(id: string): Promise<void> {
+  const db = await getDb()
+  await db.delete(TICKETS_STORE, id)
 }

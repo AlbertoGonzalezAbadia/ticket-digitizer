@@ -10,6 +10,11 @@ const STATUS_LABEL: Record<Ticket['status'], string> = {
   error: 'Error',
 }
 
+function formatDate(iso: string) {
+  const date = new Date(iso)
+  return `${date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })} ${date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`
+}
+
 function OcrStatus({ ticket }: { ticket: Ticket }) {
   const [expanded, setExpanded] = useState(false)
 
@@ -44,7 +49,8 @@ function TicketRow({ ticket }: { ticket: Ticket }) {
     return () => URL.revokeObjectURL(url)
   }, [ticket.imageBlob])
 
-  const date = new Date(ticket.createdAt)
+  const { fields } = ticket
+  const hasFields = ticket.status !== 'captured' && fields
 
   return (
     <li className="flex items-start gap-3 rounded-xl border border-teal-100 bg-white p-3">
@@ -52,10 +58,20 @@ function TicketRow({ ticket }: { ticket: Ticket }) {
         <img src={imageUrl} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-teal-950">
-          {date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}{' '}
-          {date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-        </p>
+        {hasFields ? (
+          <>
+            <p className="truncate text-sm font-medium text-teal-950">
+              {fields.vendor || 'Sin proveedor'}
+            </p>
+            <p className="text-xs text-teal-900/60">
+              {fields.total !== null ? `${fields.total.toFixed(2)} €` : 'Sin importe'}
+              {fields.date ? ` · ${fields.date}` : ''}
+              {fields.category ? ` · ${fields.category}` : ''}
+            </p>
+          </>
+        ) : (
+          <p className="truncate text-sm font-medium text-teal-950">{formatDate(ticket.createdAt)}</p>
+        )}
         <p className="mb-1 text-xs text-teal-900/50">{STATUS_LABEL[ticket.status]}</p>
         <OcrStatus ticket={ticket} />
       </div>
