@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTickets } from '../state/TicketsContext'
+import { Button } from '../components/Button'
 import type { Ticket } from '../types/ticket'
 
 const STATUS_LABEL: Record<Ticket['status'], string> = {
@@ -7,7 +8,7 @@ const STATUS_LABEL: Record<Ticket['status'], string> = {
   confirmed: 'Confirmado',
   pending_sync: 'Pendiente de sincronizar',
   synced: 'Sincronizado',
-  error: 'Error',
+  error: 'Error al sincronizar',
 }
 
 function formatDate(iso: string) {
@@ -37,6 +38,25 @@ function OcrStatus({ ticket }: { ticket: Ticket }) {
         </pre>
       )}
     </div>
+  )
+}
+
+function SyncButton({ ticket }: { ticket: Ticket }) {
+  const { syncTicketNow } = useTickets()
+  const [syncing, setSyncing] = useState(false)
+
+  if (ticket.status !== 'confirmed' && ticket.status !== 'error') return null
+
+  const handleClick = async () => {
+    setSyncing(true)
+    await syncTicketNow(ticket.id)
+    setSyncing(false)
+  }
+
+  return (
+    <Button onClick={handleClick} disabled={syncing} className="mt-2 px-3 py-1.5 text-xs">
+      {syncing ? 'Sincronizando...' : ticket.status === 'error' ? 'Reintentar' : 'Sincronizar'}
+    </Button>
   )
 }
 
@@ -72,8 +92,11 @@ function TicketRow({ ticket }: { ticket: Ticket }) {
         ) : (
           <p className="truncate text-sm font-medium text-teal-950">{formatDate(ticket.createdAt)}</p>
         )}
-        <p className="mb-1 text-xs text-teal-900/50">{STATUS_LABEL[ticket.status]}</p>
+        <p className={`mb-1 text-xs ${ticket.status === 'error' ? 'text-red-600' : 'text-teal-900/50'}`}>
+          {STATUS_LABEL[ticket.status]}
+        </p>
         <OcrStatus ticket={ticket} />
+        <SyncButton ticket={ticket} />
       </div>
     </li>
   )

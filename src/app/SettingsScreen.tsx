@@ -1,6 +1,27 @@
+import { useState } from 'react'
 import { Button } from '../components/Button'
+import { isSignedIn, signIn, signOut } from '../lib/google/auth'
 
 export function SettingsScreen() {
+  const [connected, setConnected] = useState(isSignedIn())
+  const [status, setStatus] = useState<'idle' | 'connecting' | 'error'>('idle')
+
+  const handleConnect = async () => {
+    setStatus('connecting')
+    try {
+      await signIn()
+      setConnected(true)
+      setStatus('idle')
+    } catch {
+      setStatus('error')
+    }
+  }
+
+  const handleDisconnect = () => {
+    signOut()
+    setConnected(false)
+  }
+
   return (
     <div className="flex h-full flex-col px-6 py-8">
       <h1 className="mb-6 text-lg font-semibold text-teal-950">Ajustes</h1>
@@ -11,9 +32,29 @@ export function SettingsScreen() {
           <p className="mb-3 text-sm text-teal-900/60">
             Conecta tu cuenta para guardar los tickets en Drive y Sheets.
           </p>
-          <Button disabled className="w-full py-2.5">
-            Próximamente
-          </Button>
+          {connected ? (
+            <>
+              <p className="mb-3 text-sm text-teal-700">Conectado ✓</p>
+              <Button variant="secondary" onClick={handleDisconnect} className="w-full py-2.5">
+                Desconectar
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                onClick={handleConnect}
+                disabled={status === 'connecting'}
+                className="w-full py-2.5"
+              >
+                {status === 'connecting' ? 'Conectando...' : 'Conectar con Google'}
+              </Button>
+              {status === 'error' && (
+                <p className="mt-2 text-sm text-red-600">
+                  No se pudo conectar. Inténtalo de nuevo.
+                </p>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>

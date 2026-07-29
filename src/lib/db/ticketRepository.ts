@@ -41,3 +41,17 @@ export async function deleteTicket(id: string): Promise<void> {
   const db = await getDb()
   await db.delete(TICKETS_STORE, id)
 }
+
+export async function markTicketSynced(id: string): Promise<void> {
+  const db = await getDb()
+  const ticket = await db.get(TICKETS_STORE, id)
+  if (!ticket) return
+  await db.put(TICKETS_STORE, { ...ticket, status: 'synced' })
+}
+
+export async function markTicketSyncError(id: string): Promise<void> {
+  const db = await getDb()
+  const ticket = await db.get(TICKETS_STORE, id)
+  if (!ticket) return
+  await db.put(TICKETS_STORE, { ...ticket, status: 'error' })
+}
