@@ -32,6 +32,10 @@ export default defineConfig({
         // Google API calls are handled by the app-level IndexedDB sync
         // queue, not the service worker cache — never intercept them.
         navigateFallbackDenylist: [/^\/api\//],
+        // The OCR engine (worker/core wasm) is multi-MB and must only be
+        // fetched lazily on first scan via the CacheFirst rule below, never
+        // bundled into the install-time app shell precache.
+        globIgnores: ['tesseract/**'],
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.origin === 'https://www.googleapis.com',

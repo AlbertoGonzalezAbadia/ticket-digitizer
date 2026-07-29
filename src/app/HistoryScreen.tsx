@@ -10,6 +10,31 @@ const STATUS_LABEL: Record<Ticket['status'], string> = {
   error: 'Error',
 }
 
+function OcrStatus({ ticket }: { ticket: Ticket }) {
+  const [expanded, setExpanded] = useState(false)
+
+  if (ticket.ocrText === undefined) {
+    return <p className="text-xs text-teal-900/50">Analizando texto...</p>
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="text-xs font-medium text-teal-700 underline underline-offset-2"
+      >
+        {expanded ? 'Ocultar texto OCR' : 'Ver texto OCR'}
+      </button>
+      {expanded && (
+        <pre className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-lg bg-teal-50 p-2 text-xs text-teal-900/80">
+          {ticket.ocrText || '(sin texto detectado)'}
+        </pre>
+      )}
+    </div>
+  )
+}
+
 function TicketRow({ ticket }: { ticket: Ticket }) {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
 
@@ -22,7 +47,7 @@ function TicketRow({ ticket }: { ticket: Ticket }) {
   const date = new Date(ticket.createdAt)
 
   return (
-    <li className="flex items-center gap-3 rounded-xl border border-teal-100 bg-white p-3">
+    <li className="flex items-start gap-3 rounded-xl border border-teal-100 bg-white p-3">
       {imageUrl && (
         <img src={imageUrl} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
       )}
@@ -31,7 +56,8 @@ function TicketRow({ ticket }: { ticket: Ticket }) {
           {date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}{' '}
           {date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
         </p>
-        <p className="text-xs text-teal-900/50">{STATUS_LABEL[ticket.status]}</p>
+        <p className="mb-1 text-xs text-teal-900/50">{STATUS_LABEL[ticket.status]}</p>
+        <OcrStatus ticket={ticket} />
       </div>
     </li>
   )

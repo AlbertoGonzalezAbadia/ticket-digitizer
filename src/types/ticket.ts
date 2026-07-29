@@ -10,4 +10,6 @@ export interface Ticket {
   status: TicketStatus
   createdAt: string
   imageBlob: Blob
+  ocrText?: string
+  ocrConfidence?: number
 }

@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Ticket } from '../types/ticket'
-import { addCapturedTicket, getAllTickets } from '../lib/db/ticketRepository'
+import { addCapturedTicket, getAllTickets, updateTicketOcr } from '../lib/db/ticketRepository'
 import { prepareCapturedImage } from '../lib/image/prepareImage'
+import { recognizeTicket } from '../lib/ocr/tesseractClient'
 
 interface TicketsContextValue {
   tickets: Ticket[]
@@ -24,13 +25,29 @@ export function TicketsProvider({ children }: { children: ReactNode }) {
     refresh().finally(() => setLoading(false))
   }, [refresh])
 
+  const runOcr = useCallback(
+    async (ticketId: string, imageBlob: Blob) => {
+      try {
+        const { text, confidence } = await recognizeTicket(imageBlob)
+        await updateTicketOcr(ticketId, text, confidence)
+      } catch {
+        // Leave the ticket without OCR text; the Confirm screen (M4) lets
+        // the user fill fields in by hand when recognition fails.
+      } finally {
+        await refresh()
+      }
+    },
+    [refresh],
+  )
+
   const captureTicket = useCallback(
     async (file: File) => {
       const imageBlob = await prepareCapturedImage(file)
-      await addCapturedTicket(imageBlob)
+      const ticket = await addCapturedTicket(imageBlob)
       await refresh()
+      void runOcr(ticket.id, imageBlob)
     },
-    [refresh],
+    [refresh, runOcr],
   )
 
   const pendingCount = tickets.filter((t) => t.status !== 'synced').length

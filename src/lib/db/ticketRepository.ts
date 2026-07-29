@@ -18,3 +18,14 @@ export async function getAllTickets(): Promise<Ticket[]> {
   const tickets = await db.getAllFromIndex(TICKETS_STORE, 'by-createdAt')
   return tickets.reverse()
 }
+
+export async function updateTicketOcr(
+  id: string,
+  ocrText: string,
+  ocrConfidence: number,
+): Promise<void> {
+  const db = await getDb()
+  const ticket = await db.get(TICKETS_STORE, id)
+  if (!ticket) return
+  await db.put(TICKETS_STORE, { ...ticket, ocrText, ocrConfidence })
+}
