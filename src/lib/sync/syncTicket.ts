@@ -17,8 +17,29 @@ function slugify(text: string): string {
   )
 }
 
+// A date-only string like "2026-07-29" parses as UTC midnight per the JS
+// spec, but getMonth()/getDate() below read it back in the device's local
+// timezone -- anywhere behind UTC, that rolls the date backward a day,
+// silently filing the ticket into the wrong month's Drive folder and the
+// wrong quarter column. Parsing the components directly keeps it local
+// throughout, so no timezone conversion ever happens.
+function parseLocalDate(iso: string): Date {
+  const [year, month, day] = iso.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
+// Google Sheets treats USER_ENTERED cell text starting with =, +, -, or @
+// as a formula -- needed so numeric columns (totals, IVA) render as real
+// numbers the gestor can sum, but it means free-text fields (an OCR-read
+// vendor name, or a hand-typed custom recipient) could otherwise be read
+// as a formula. A leading apostrophe forces Sheets to treat it as text.
+const FORMULA_TRIGGER = /^[=+\-@]/
+function sanitizeForSheets(text: string): string {
+  return FORMULA_TRIGGER.test(text) ? `'${text}` : text
+}
+
 export async function syncTicket(ticket: Ticket): Promise<void> {
-  const date = ticket.fields?.date ? new Date(ticket.fields.date) : new Date(ticket.createdAt)
+  const date = ticket.fields?.date ? parseLocalDate(ticket.fields.date) : new Date(ticket.createdAt)
   const { folderId, spreadsheetId, year } = await resolveDestination(date, ticket.fields?.recipient ?? null)
 
   const createdAt = new Date(ticket.createdAt)
@@ -44,7 +65,7 @@ export async function syncTicket(ticket: Ticket): Promise<void> {
   const row = [
     f?.date ?? '',
     `T${getQuarter(date)}`,
-    f?.vendor ?? '',
+    f?.vendor ? sanitizeForSheets(f.vendor) : '',
     '',
     base,
     ivaBreakdown,
@@ -56,7 +77,8 @@ export async function syncTicket(ticket: Ticket): Promise<void> {
     '',
     ticket.createdAt,
     ticket.ocrConfidence != null && ticket.ocrConfidence < 60 ? 'Revisar' : 'OK',
-    f?.recipient ?? '',
+    f?.recipient ? sanitizeForSheets(f.recipient) : '',
   ]
   await appendTicketRow(spreadsheetId, year, row)
 }
+

@@ -99,3 +99,17 @@ export function signOut(): void {
   }
   accessToken = null
 }
+
+// Access tokens from the GIS token client expire after about an hour with
+// no built-in refresh. Without this, ensureAccessToken() would keep handing
+// out the same dead token forever once it expires — every sync (including
+// "Reintentar") would fail identically, with no recovery except the user
+// discovering they have to manually disconnect/reconnect in Settings.
+// Callers check for 401/403 from Drive/Sheets and call this so the next
+// sync attempt (a fresh user click, so the consent popup won't be blocked)
+// re-authenticates instead of retrying with the same stale token.
+export function invalidateTokenOnAuthError(status: number): void {
+  if (status === 401 || status === 403) {
+    accessToken = null
+  }
+}

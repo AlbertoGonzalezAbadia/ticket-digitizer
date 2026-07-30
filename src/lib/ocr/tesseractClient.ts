@@ -28,6 +28,13 @@ function getWorker() {
       await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_COLUMN })
       return worker
     })
+    // If init fails (e.g. a flaky first fetch of the language data), don't
+    // leave the whole session permanently stuck on a rejected promise —
+    // every future capture would silently skip OCR. Clearing it lets the
+    // next capture try again from scratch.
+    workerPromise.catch(() => {
+      workerPromise = null
+    })
   }
   return workerPromise
 }

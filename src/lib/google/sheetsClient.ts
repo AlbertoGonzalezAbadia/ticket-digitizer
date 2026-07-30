@@ -1,4 +1,4 @@
-import { getAccessToken } from './auth'
+import { getAccessToken, invalidateTokenOnAuthError } from './auth'
 
 const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets'
 
@@ -34,15 +34,20 @@ async function getSheetTitles(spreadsheetId: string): Promise<string[]> {
   const res = await fetch(`${SHEETS_API}/${spreadsheetId}?fields=sheets.properties.title`, {
     headers: authHeaders(),
   })
-  if (!res.ok) throw new Error('Error al leer la hoja de cálculo')
+  if (!res.ok) {
+    invalidateTokenOnAuthError(res.status)
+    throw new Error('Error al leer la hoja de cálculo')
+  }
   const data = await res.json()
   const sheets: SheetProperties[] = data.sheets ?? []
   return sheets.map((s) => s.properties.title)
 }
 
 async function writeHeaderRow(spreadsheetId: string, year: string): Promise<void> {
+  // HEADER_ROW is currently 15 columns (through 'O') — this single-letter
+  // math would need revisiting (AA, AB, ...) if it ever grows past 26.
   const lastColumn = String.fromCharCode('A'.charCodeAt(0) + HEADER_ROW.length - 1)
-  await fetch(
+  const res = await fetch(
     `${SHEETS_API}/${spreadsheetId}/values/${year}!A1:${lastColumn}1?valueInputOption=RAW`,
     {
       method: 'PUT',
@@ -50,6 +55,10 @@ async function writeHeaderRow(spreadsheetId: string, year: string): Promise<void
       body: JSON.stringify({ values: [HEADER_ROW] }),
     },
   )
+  if (!res.ok) {
+    invalidateTokenOnAuthError(res.status)
+    throw new Error('Error al escribir la cabecera de la hoja')
+  }
 }
 
 async function addYearSheet(spreadsheetId: string, year: string): Promise<void> {
@@ -58,7 +67,10 @@ async function addYearSheet(spreadsheetId: string, year: string): Promise<void> 
     headers: authHeaders(),
     body: JSON.stringify({ requests: [{ addSheet: { properties: { title: year } } }] }),
   })
-  if (!res.ok) throw new Error('Error al crear la pestaña del año')
+  if (!res.ok) {
+    invalidateTokenOnAuthError(res.status)
+    throw new Error('Error al crear la pestaña del año')
+  }
 }
 
 // Also re-writes the header row on every call (cheap, idempotent) so that
@@ -86,5 +98,8 @@ export async function appendTicketRow(
       body: JSON.stringify({ values: [row] }),
     },
   )
-  if (!res.ok) throw new Error('Error al guardar la fila en la hoja de cálculo')
+  if (!res.ok) {
+    invalidateTokenOnAuthError(res.status)
+    throw new Error('Error al guardar la fila en la hoja de cálculo')
+  }
 }

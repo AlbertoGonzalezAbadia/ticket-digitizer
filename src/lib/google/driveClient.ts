@@ -1,4 +1,4 @@
-import { getAccessToken } from './auth'
+import { getAccessToken, invalidateTokenOnAuthError } from './auth'
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3'
 const UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3'
@@ -10,8 +10,12 @@ function authHeaders() {
   return { Authorization: `Bearer ${token}` }
 }
 
+// Backslash must be escaped first — a folder/recipient name is free user
+// text (e.g. a custom "Enviar a" entry), and escaping the quote before the
+// backslash would double-escape any backslash the quote-escaping just
+// introduced. Drive's query grammar uses backslash-escaping for both.
 function escapeQueryValue(value: string): string {
-  return value.replace(/'/g, "\\'")
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
 }
 
 async function findByName(name: string, mimeType: string, parentId?: string): Promise<string | null> {
@@ -19,7 +23,10 @@ async function findByName(name: string, mimeType: string, parentId?: string): Pr
   const q = `name = '${escapeQueryValue(name)}' and mimeType = '${mimeType}' and trashed = false and ${APP_PROPERTY_CLAUSE}${parentClause}`
   const url = `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id,name)`
   const res = await fetch(url, { headers: authHeaders() })
-  if (!res.ok) throw new Error('Error al buscar en Google Drive')
+  if (!res.ok) {
+    invalidateTokenOnAuthError(res.status)
+    throw new Error('Error al buscar en Google Drive')
+  }
   const data = await res.json()
   return data.files?.[0]?.id ?? null
 }
@@ -39,7 +46,10 @@ export async function createFolder(name: string, parentId?: string): Promise<str
       appProperties: { app: 'ticket-digitizer' },
     }),
   })
-  if (!res.ok) throw new Error('Error al crear carpeta en Drive')
+  if (!res.ok) {
+    invalidateTokenOnAuthError(res.status)
+    throw new Error('Error al crear carpeta en Drive')
+  }
   const data = await res.json()
   return data.id
 }
@@ -65,7 +75,10 @@ export async function createSpreadsheetFile(name: string, parentId: string): Pro
       appProperties: { app: 'ticket-digitizer' },
     }),
   })
-  if (!res.ok) throw new Error('Error al crear la hoja de cálculo')
+  if (!res.ok) {
+    invalidateTokenOnAuthError(res.status)
+    throw new Error('Error al crear la hoja de cálculo')
+  }
   const data = await res.json()
   return data.id
 }
@@ -85,6 +98,9 @@ export async function uploadImage(
     headers: authHeaders(),
     body: form,
   })
-  if (!res.ok) throw new Error('Error al subir la imagen a Drive')
+  if (!res.ok) {
+    invalidateTokenOnAuthError(res.status)
+    throw new Error('Error al subir la imagen a Drive')
+  }
   return res.json()
 }

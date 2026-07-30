@@ -117,7 +117,10 @@ export function TicketsProvider({ children }: { children: ReactNode }) {
     [tickets, refresh],
   )
 
-  const pendingCount = tickets.filter((t) => t.status !== 'synced').length
+  // 'captured' tickets aren't sync-eligible yet — they need confirmation
+  // first — so counting them here would overstate what's actually waiting
+  // on Google as "pending sync".
+  const pendingCount = tickets.filter((t) => t.status === 'confirmed' || t.status === 'error').length
 
   return (
     <TicketsContext.Provider
