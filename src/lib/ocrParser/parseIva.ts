@@ -16,6 +16,15 @@ const AMOUNT_THEN_RATE = new RegExp(
   'gi',
 )
 const PERCENT_ONLY = new RegExp(`${TAX_KEYWORD}\\s*(${RATE})\\s*%`, 'gi')
+// "TVA 10,00  38,64  3,86  42,50" — some French POS systems print a tax
+// breakdown as a bare table row (rate, base HT, tax amount, total TTC)
+// with no '%' sign on the rate at all. Requiring whitespace (not '%')
+// right after the rate keeps this from ever matching the inline formats
+// above, which always have '%' immediately after the rate.
+const RATE_TABLE_ROW = new RegExp(
+  `${TAX_KEYWORD}\\s+(${RATE})\\s+(\\d{1,4}[.,]\\d{2})\\s+(\\d{1,4}[.,]\\d{2})\\s+(\\d{1,4}[.,]\\d{2})`,
+  'gi',
+)
 
 function toNumber(raw: string): number {
   return parseFloat(raw.replace(',', '.'))
@@ -46,6 +55,13 @@ export function parseIva(text: string): ParsedField<IvaLine[]> {
     if (seenPercents.has(percent)) continue
     seenPercents.add(percent)
     lines.push({ percent, amount: toNumber(match[2]) })
+  }
+
+  for (const match of text.matchAll(RATE_TABLE_ROW)) {
+    const percent = toNumber(match[1])
+    if (seenPercents.has(percent)) continue
+    seenPercents.add(percent)
+    lines.push({ percent, amount: toNumber(match[3]) })
   }
 
   if (lines.length > 0) {
