@@ -1,4 +1,4 @@
-import { createWorker, type Worker } from 'tesseract.js'
+import { createWorker, PSM, type Worker } from 'tesseract.js'
 
 export interface OcrResult {
   text: string
@@ -17,6 +17,13 @@ function getWorker() {
     workerPromise = createWorker('spa', 1, {
       workerPath: '/tesseract/worker.min.js',
       corePath: '/tesseract/core/',
+    }).then(async (worker) => {
+      // Real receipts are a single column of text with wildly varying font
+      // sizes (tiny line items next to a huge bold total) — Tesseract's
+      // default auto-segmentation can lose whole lines when a size jump
+      // confuses it. SINGLE_COLUMN handles that layout far more reliably.
+      await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_COLUMN })
+      return worker
     })
   }
   return workerPromise

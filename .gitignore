@@ -16,6 +16,9 @@ dev-dist
 .env.*
 !.env.example
 
+# Local test receipt photos — personal, never committed
+test_tickets
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
