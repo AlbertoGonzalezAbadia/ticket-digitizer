@@ -21,13 +21,19 @@ const MONTH_MAP: Record<string, number> = {
   diciembre: 11, dic: 11, december: 11, dec: 11, decembre: 11,
 }
 
-const NUMERIC_DATE = /\b(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4}|\d{2})\b/
+const NUMERIC_DATE = /\b(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4}|\d{2})\b/g
+// Spaces only, never newlines — OCR text is one "line" per receipt line,
+// and `\s` matching `\n` let day/month/year fragments from two unrelated
+// lines glue into a bogus match (e.g. a ticket number "15" + the next
+// line's "Mardi 21" got read as day=15/month="Mardi"/year=21, silently
+// consuming the real "21" before "21 Juillet 2026" could ever match).
+const SP = '[ \\t]+'
 // "15 de enero de 2026" — the Spanish "day de Month de year" phrasing.
-const SPANISH_LONG_DATE = /\b(\d{1,2})\s+de\s+([a-zA-ZÀ-ÿ]+)\s+(?:de\s+)?(\d{4}|\d{2})\b/gi
+const SPANISH_LONG_DATE = new RegExp(`\\b(\\d{1,2})${SP}de${SP}([a-zA-ZÀ-ÿ]+)${SP}(?:de${SP})?(\\d{4}|\\d{2})\\b`, 'gi')
 // "15 January 2026" / "15 janvier 2026" / "15 Jan. 2026" — day first.
-const DAY_MONTHNAME_YEAR = /\b(\d{1,2})\s+([a-zA-ZÀ-ÿ]{3,})\.?,?\s+(\d{4}|\d{2})\b/gi
+const DAY_MONTHNAME_YEAR = new RegExp(`\\b(\\d{1,2})${SP}([a-zA-ZÀ-ÿ]{3,})\\.?,?${SP}(\\d{4}|\\d{2})\\b`, 'gi')
 // "January 15, 2026" / "Jan 15 2026" — month first (common in English).
-const MONTHNAME_DAY_YEAR = /\b([a-zA-ZÀ-ÿ]{3,})\.?\s+(\d{1,2}),?\s+(\d{4}|\d{2})\b/gi
+const MONTHNAME_DAY_YEAR = new RegExp(`\\b([a-zA-ZÀ-ÿ]{3,})\\.?${SP}(\\d{1,2}),?${SP}(\\d{4}|\\d{2})\\b`, 'gi')
 // "Jui29'26" — some French POS printouts glue month+day+year with no
 // spaces and an apostrophe before a 2-digit year (seen on a real SSP
 // France/Brioche Doree receipt, cross-checked against that same
@@ -49,29 +55,35 @@ function toIso(day: number, month1to12: number, year: number): string | null {
 }
 
 function tryNumericDate(text: string): string | null {
-  const match = text.match(NUMERIC_DATE)
-  if (!match) return null
-  const a = parseInt(match[1], 10)
-  const b = parseInt(match[2], 10)
-  const year = parseInt(match[3], 10)
+  // Tries every candidate, not just the first — a phone number or SIRET
+  // fragment (e.g. "09.87.73" from "09.87.73.42.272") can look like a
+  // date and match before the real one, but fail range validation; a
+  // single match() would give up right there instead of moving on.
+  for (const match of text.matchAll(NUMERIC_DATE)) {
+    const a = parseInt(match[1], 10)
+    const b = parseInt(match[2], 10)
+    const year = parseInt(match[3], 10)
 
-  // If exactly one side can't be a month (> 12), it must be the day —
-  // resolves the DD/MM vs MM/DD ambiguity whenever the numbers allow it.
-  let day: number
-  let month: number
-  if (a > 12 && b <= 12) {
-    day = a
-    month = b
-  } else if (b > 12 && a <= 12) {
-    day = b
-    month = a
-  } else {
-    // Genuinely ambiguous — default to day-first (DD/MM), the dominant
-    // format for Spanish and French tickets.
-    day = a
-    month = b
+    // If exactly one side can't be a month (> 12), it must be the day —
+    // resolves the DD/MM vs MM/DD ambiguity whenever the numbers allow it.
+    let day: number
+    let month: number
+    if (a > 12 && b <= 12) {
+      day = a
+      month = b
+    } else if (b > 12 && a <= 12) {
+      day = b
+      month = a
+    } else {
+      // Genuinely ambiguous — default to day-first (DD/MM), the dominant
+      // format for Spanish and French tickets.
+      day = a
+      month = b
+    }
+    const iso = toIso(day, month, year)
+    if (iso) return iso
   }
-  return toIso(day, month, year)
+  return null
 }
 
 function tryMonthNamePatterns(text: string): string | null {

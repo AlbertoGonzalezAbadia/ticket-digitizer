@@ -2,17 +2,20 @@ import type { ParsedField } from './types'
 import type { IvaLine } from '../../types/ticket'
 
 const TAX_KEYWORD = '(?:IVA|TVA|VAT)'
+// French POS systems commonly print whole-number rates with two decimals
+// ("20,00%"), not just one ("5,5%") — both must be accepted.
+const RATE = '\\d{1,2}(?:[.,]\\d{1,2})?'
 // "IVA 21%: 11,01" / "TVA 10% 6.90" — rate printed before the amount.
 const RATE_THEN_AMOUNT = new RegExp(
-  `${TAX_KEYWORD}\\s*(\\d{1,2}(?:[.,]\\d)?)\\s*%[^\\d\\n]{0,15}(\\d{1,4}[.,]\\d{2})`,
+  `${TAX_KEYWORD}\\s*(${RATE})\\s*%[^\\d\\n]{0,15}(\\d{1,4}[.,]\\d{2})`,
   'gi',
 )
 // "0.63 TVA 10%" — amount printed before the rate (seen on real receipts).
 const AMOUNT_THEN_RATE = new RegExp(
-  `(\\d{1,4}[.,]\\d{2})[^\\d\\n]{0,4}${TAX_KEYWORD}\\s*(\\d{1,2}(?:[.,]\\d)?)\\s*%`,
+  `(\\d{1,4}[.,]\\d{2})[^\\d\\n]{0,4}${TAX_KEYWORD}\\s*(${RATE})\\s*%`,
   'gi',
 )
-const PERCENT_ONLY = new RegExp(`${TAX_KEYWORD}\\s*(\\d{1,2}(?:[.,]\\d)?)\\s*%`, 'gi')
+const PERCENT_ONLY = new RegExp(`${TAX_KEYWORD}\\s*(${RATE})\\s*%`, 'gi')
 
 function toNumber(raw: string): number {
   return parseFloat(raw.replace(',', '.'))
