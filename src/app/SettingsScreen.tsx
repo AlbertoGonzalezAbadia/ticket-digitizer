@@ -57,6 +57,16 @@ export function SettingsScreen() {
           )}
         </div>
       </div>
+
+      <p className="mt-auto pt-6 text-center text-xs text-teal-900/30">
+        Versión {__APP_VERSION__} ·{' '}
+        {new Date(__BUILD_TIME__).toLocaleString('es-ES', {
+          day: '2-digit',
+          month: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+        })}
+      </p>
     </div>
   )
 }
