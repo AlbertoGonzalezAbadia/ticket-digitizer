@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTickets } from '../state/TicketsContext'
 import { Button } from '../components/Button'
-import { TICKET_CATEGORIES, type Ticket, type TicketCategory } from '../types/ticket'
+import type { Ticket } from '../types/ticket'
 
 const STATUS_LABEL: Record<Ticket['status'], string> = {
   captured: 'Capturado',
@@ -118,7 +118,6 @@ function TicketRow({ ticket }: { ticket: Ticket }) {
 export function HistoryScreen() {
   const { tickets, loading } = useTickets()
   const [dateFilter, setDateFilter] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState<TicketCategory | ''>('')
   const [recipientFilter, setRecipientFilter] = useState('')
 
   const recipientOptions = useMemo(() => {
@@ -132,13 +131,12 @@ export function HistoryScreen() {
   const filtered = useMemo(() => {
     return tickets.filter((t) => {
       if (dateFilter && ticketDay(t) !== dateFilter) return false
-      if (categoryFilter && t.fields?.category !== categoryFilter) return false
       if (recipientFilter && t.fields?.recipient !== recipientFilter) return false
       return true
     })
-  }, [tickets, dateFilter, categoryFilter, recipientFilter])
+  }, [tickets, dateFilter, recipientFilter])
 
-  const hasActiveFilters = dateFilter !== '' || categoryFilter !== '' || recipientFilter !== ''
+  const hasActiveFilters = dateFilter !== '' || recipientFilter !== ''
 
   return (
     <div className="flex h-full flex-col px-6 py-8">
@@ -154,21 +152,6 @@ export function HistoryScreen() {
               onChange={(e) => setDateFilter(e.target.value)}
               className="rounded-lg border border-teal-200 bg-white px-2 py-1.5 text-sm text-teal-950"
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-teal-900/70">Categoría</span>
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value as TicketCategory | '')}
-              className="rounded-lg border border-teal-200 bg-white px-2 py-1.5 text-sm text-teal-950"
-            >
-              <option value="">Todas</option>
-              {TICKET_CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
           </label>
           {recipientOptions.length > 0 && (
             <label className="flex flex-col gap-1">
@@ -192,7 +175,6 @@ export function HistoryScreen() {
               type="button"
               onClick={() => {
                 setDateFilter('')
-                setCategoryFilter('')
                 setRecipientFilter('')
               }}
               className="mb-1.5 text-xs font-medium text-teal-700 underline underline-offset-2"

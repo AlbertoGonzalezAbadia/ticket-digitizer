@@ -2,12 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Button } from '../components/Button'
 import { useTickets } from '../state/TicketsContext'
 import { parseTicketText } from '../lib/ocrParser'
-import {
-  RECIPIENT_PRESETS,
-  TICKET_CATEGORIES,
-  type TicketCategory,
-  type TicketFields,
-} from '../types/ticket'
+import { RECIPIENT_PRESETS, type TicketCategory, type TicketFields } from '../types/ticket'
 
 interface ConfirmScreenProps {
   ticketId: string
@@ -76,18 +71,6 @@ export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
   const update =
     (key: keyof Omit<FormState, 'ivaLines'>) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value }))
-
-  const updateIvaLine = (index: number, key: keyof IvaLineForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((f) => ({
-      ...f,
-      ivaLines: f.ivaLines.map((line, i) => (i === index ? { ...line, [key]: e.target.value } : line)),
-    }))
-
-  const addIvaLine = () =>
-    setForm((f) => ({ ...f, ivaLines: [...f.ivaLines, { percent: '', amount: '' }] }))
-
-  const removeIvaLine = (index: number) =>
-    setForm((f) => ({ ...f, ivaLines: f.ivaLines.filter((_, i) => i !== index) }))
 
   const handleSave = async () => {
     setSaving(true)
@@ -169,65 +152,6 @@ export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
           />
         </label>
 
-        <div>
-          <span className="mb-1 block text-sm font-medium text-teal-900">
-            IVA (puede haber más de un tipo)
-          </span>
-          <div className="flex flex-col gap-2">
-            {form.ivaLines.map((line, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.1"
-                  value={line.percent}
-                  onChange={updateIvaLine(index, 'percent')}
-                  placeholder="% (21)"
-                  className={fieldClass(parsed.iva.confidence === 'low')}
-                />
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  value={line.amount}
-                  onChange={updateIvaLine(index, 'amount')}
-                  placeholder="Importe (€)"
-                  className={fieldClass(parsed.iva.confidence === 'low')}
-                />
-                {form.ivaLines.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeIvaLine(index)}
-                    aria-label="Quitar este tipo de IVA"
-                    className="shrink-0 rounded-lg px-2 py-2 text-xl leading-none text-teal-900/40"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={addIvaLine}
-            className="mt-2 text-sm font-medium text-teal-700 underline underline-offset-2"
-          >
-            + Añadir otro tipo de IVA
-          </button>
-        </div>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-teal-900">Categoría</span>
-          <select value={form.category} onChange={update('category')} className={fieldClass(false)}>
-            <option value="">Sin categoría</option>
-            {TICKET_CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-        </label>
-
         <label className="flex flex-col gap-1">
           <span className="text-sm font-medium text-teal-900">Enviar a</span>
           <select value={form.recipientChoice} onChange={update('recipientChoice')} className={fieldClass(false)}>
@@ -237,7 +161,7 @@ export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
                 {name}
               </option>
             ))}
-            <option value={OTHER_RECIPIENT}>Otro...</option>
+            <option value={OTHER_RECIPIENT}>Otros</option>
           </select>
         </label>
 
