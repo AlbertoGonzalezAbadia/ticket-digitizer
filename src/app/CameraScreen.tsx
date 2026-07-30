@@ -54,13 +54,19 @@ export function CameraScreen({ onCaptured }: CameraScreenProps) {
           className="hidden"
           id="camera-input"
         />
-        <label
-          htmlFor="camera-input"
-          className={`flex h-40 w-40 items-center justify-center rounded-full bg-teal-700 text-white shadow-2xl shadow-teal-900/30 transition active:scale-95 ${
-            state === 'processing' ? 'pointer-events-none opacity-70' : 'cursor-pointer'
-          }`}
-          aria-label="Hacer foto de un ticket"
-        >
+        <div className="relative flex items-center justify-center">
+          <div
+            className={`absolute h-44 w-44 rounded-full bg-teal-400/40 blur-2xl transition-opacity ${
+              state === 'processing' ? 'animate-pulse opacity-70' : 'opacity-50'
+            }`}
+          />
+          <label
+            htmlFor="camera-input"
+            className={`relative flex h-40 w-40 items-center justify-center rounded-full bg-gradient-to-br from-teal-600 to-teal-800 text-white shadow-2xl shadow-teal-900/30 ring-4 ring-white transition active:scale-95 ${
+              state === 'processing' ? 'pointer-events-none opacity-70' : 'cursor-pointer'
+            }`}
+            aria-label="Hacer foto de un ticket"
+          >
           {state === 'processing' ? (
             <svg
               className="h-12 w-12 animate-spin"
@@ -92,7 +98,8 @@ export function CameraScreen({ onCaptured }: CameraScreenProps) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 17.25a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z" />
             </svg>
           )}
-        </label>
+          </label>
+        </div>
         <p className={`text-sm ${state === 'error' ? 'text-red-600' : 'text-teal-900/60'}`}>
           {STATUS_TEXT[state]}
         </p>

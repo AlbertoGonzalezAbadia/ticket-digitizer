@@ -16,7 +16,7 @@ function App() {
 
   return (
     <TicketsProvider>
-      <div className="flex h-full flex-col bg-teal-50/40">
+      <div className="flex h-full flex-col bg-gradient-to-b from-teal-50 via-teal-50/40 to-white">
         <main className="flex-1 overflow-y-auto">
           {confirmingTicketId ? (
             <ConfirmScreen

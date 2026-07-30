@@ -11,6 +11,24 @@ const STATUS_LABEL: Record<Ticket['status'], string> = {
   error: 'Error al sincronizar',
 }
 
+const STATUS_PILL: Record<Ticket['status'], string> = {
+  captured: 'bg-slate-100 text-slate-600',
+  confirmed: 'bg-amber-100 text-amber-700',
+  pending_sync: 'bg-amber-100 text-amber-700',
+  synced: 'bg-teal-100 text-teal-700',
+  error: 'bg-red-100 text-red-700',
+}
+
+function StatusPill({ status }: { status: Ticket['status'] }) {
+  return (
+    <span
+      className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_PILL[status]}`}
+    >
+      {STATUS_LABEL[status]}
+    </span>
+  )
+}
+
 function formatDate(iso: string) {
   const date = new Date(iso)
   return `${date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })} ${date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`
@@ -79,35 +97,35 @@ function TicketRow({ ticket, onEdit }: { ticket: Ticket; onEdit: (id: string) =>
   const hasFields = ticket.status !== 'captured' && fields
 
   return (
-    <li className="flex items-start gap-3 rounded-xl border border-teal-100 bg-white p-3">
+    <li className="flex items-start gap-3 rounded-2xl border border-teal-100 bg-white p-3 shadow-sm shadow-teal-900/5">
       {isPdf ? (
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-xs font-semibold text-teal-700">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-xs font-semibold text-teal-700">
           PDF
         </div>
       ) : (
         imageUrl && (
-          <img src={imageUrl} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
+          <img src={imageUrl} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
         )
       )}
       <div className="min-w-0 flex-1">
-        {hasFields ? (
-          <>
+        <div className="mb-1 flex items-start justify-between gap-2">
+          {hasFields ? (
             <p className="truncate text-sm font-medium text-teal-950">
               {fields.vendor || 'Sin proveedor'}
             </p>
-            <p className="text-xs text-teal-900/60">
-              {fields.total !== null ? `${fields.total.toFixed(2)} €` : 'Sin importe'}
-              {fields.date ? ` · ${fields.date}` : ''}
-              {fields.category ? ` · ${fields.category}` : ''}
-              {fields.recipient ? ` · Para: ${fields.recipient}` : ''}
-            </p>
-          </>
-        ) : (
-          <p className="truncate text-sm font-medium text-teal-950">{formatDate(ticket.createdAt)}</p>
+          ) : (
+            <p className="truncate text-sm font-medium text-teal-950">{formatDate(ticket.createdAt)}</p>
+          )}
+          <StatusPill status={ticket.status} />
+        </div>
+        {hasFields && (
+          <p className="mb-1 text-xs text-teal-900/60">
+            {fields.total !== null ? `${fields.total.toFixed(2)} €` : 'Sin importe'}
+            {fields.date ? ` · ${fields.date}` : ''}
+            {fields.category ? ` · ${fields.category}` : ''}
+            {fields.recipient ? ` · Para: ${fields.recipient}` : ''}
+          </p>
         )}
-        <p className={`mb-1 text-xs ${ticket.status === 'error' ? 'text-red-600' : 'text-teal-900/50'}`}>
-          {STATUS_LABEL[ticket.status]}
-        </p>
         <OcrStatus ticket={ticket} />
         <div className="flex flex-wrap gap-2">
           {ticket.status !== 'synced' && (
@@ -180,7 +198,7 @@ export function HistoryScreen({ onEditTicket }: HistoryScreenProps) {
       <SyncAllButton />
 
       {tickets.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-end gap-2">
+        <div className="mb-4 flex flex-wrap items-end gap-2 rounded-2xl border border-teal-100 bg-white/70 p-3">
           <label className="flex flex-col gap-1">
             <span className="text-xs font-medium text-teal-900/70">Día</span>
             <input
@@ -225,7 +243,16 @@ export function HistoryScreen({ onEditTicket }: HistoryScreenProps) {
       {loading ? (
         <p className="text-center text-sm text-teal-900/50">Cargando...</p>
       ) : tickets.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center text-teal-900/50">
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center text-teal-900/50">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-teal-100/70 text-teal-600">
+            <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.5} stroke="currentColor" className="h-8 w-8">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+              />
+            </svg>
+          </div>
           <p>Todavía no hay tickets guardados.</p>
           <p className="text-sm">Los tickets que escanees aparecerán aquí.</p>
         </div>
