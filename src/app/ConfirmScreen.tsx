@@ -16,12 +16,16 @@ interface ConfirmScreenProps {
 
 const OTHER_RECIPIENT = 'Otro'
 
+interface IvaLineForm {
+  percent: string
+  amount: string
+}
+
 interface FormState {
   date: string
   vendor: string
   total: string
-  ivaPercent: string
-  ivaAmount: string
+  ivaLines: IvaLineForm[]
   category: TicketCategory | ''
   recipientChoice: string
   recipientCustom: string
@@ -42,8 +46,13 @@ export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
     date: parsed.date.value ?? '',
     vendor: parsed.vendor.value ?? '',
     total: parsed.total.value !== null ? String(parsed.total.value) : '',
-    ivaPercent: parsed.iva.value?.percent != null ? String(parsed.iva.value.percent) : '',
-    ivaAmount: parsed.iva.value?.amount != null ? String(parsed.iva.value.amount) : '',
+    ivaLines:
+      parsed.iva.value && parsed.iva.value.length > 0
+        ? parsed.iva.value.map((line) => ({
+            percent: line.percent != null ? String(line.percent) : '',
+            amount: line.amount != null ? String(line.amount) : '',
+          }))
+        : [{ percent: '', amount: '' }],
     category: '',
     recipientChoice: '',
     recipientCustom: '',
@@ -64,8 +73,21 @@ export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
 
   const isPdf = ticket.imageBlob.type === 'application/pdf'
 
-  const update = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setForm((f) => ({ ...f, [key]: e.target.value }))
+  const update =
+    (key: keyof Omit<FormState, 'ivaLines'>) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setForm((f) => ({ ...f, [key]: e.target.value }))
+
+  const updateIvaLine = (index: number, key: keyof IvaLineForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({
+      ...f,
+      ivaLines: f.ivaLines.map((line, i) => (i === index ? { ...line, [key]: e.target.value } : line)),
+    }))
+
+  const addIvaLine = () =>
+    setForm((f) => ({ ...f, ivaLines: [...f.ivaLines, { percent: '', amount: '' }] }))
+
+  const removeIvaLine = (index: number) =>
+    setForm((f) => ({ ...f, ivaLines: f.ivaLines.filter((_, i) => i !== index) }))
 
   const handleSave = async () => {
     setSaving(true)
@@ -77,8 +99,12 @@ export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
       date: form.date || null,
       vendor: form.vendor.trim() || null,
       total: form.total ? parseFloat(form.total) : null,
-      ivaPercent: form.ivaPercent ? parseFloat(form.ivaPercent) : null,
-      ivaAmount: form.ivaAmount ? parseFloat(form.ivaAmount) : null,
+      ivaLines: form.ivaLines
+        .filter((line) => line.percent !== '' || line.amount !== '')
+        .map((line) => ({
+          percent: line.percent ? parseFloat(line.percent) : null,
+          amount: line.amount ? parseFloat(line.amount) : null,
+        })),
       category: form.category || null,
       recipient,
     }
@@ -143,31 +169,51 @@ export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
           />
         </label>
 
-        <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-teal-900">IVA %</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.1"
-              value={form.ivaPercent}
-              onChange={update('ivaPercent')}
-              placeholder="21"
-              className={fieldClass(parsed.iva.confidence === 'low')}
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-teal-900">Importe IVA (€)</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              value={form.ivaAmount}
-              onChange={update('ivaAmount')}
-              placeholder="0,00"
-              className={fieldClass(parsed.iva.confidence === 'low')}
-            />
-          </label>
+        <div>
+          <span className="mb-1 block text-sm font-medium text-teal-900">
+            IVA (puede haber más de un tipo)
+          </span>
+          <div className="flex flex-col gap-2">
+            {form.ivaLines.map((line, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.1"
+                  value={line.percent}
+                  onChange={updateIvaLine(index, 'percent')}
+                  placeholder="% (21)"
+                  className={fieldClass(parsed.iva.confidence === 'low')}
+                />
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  value={line.amount}
+                  onChange={updateIvaLine(index, 'amount')}
+                  placeholder="Importe (€)"
+                  className={fieldClass(parsed.iva.confidence === 'low')}
+                />
+                {form.ivaLines.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeIvaLine(index)}
+                    aria-label="Quitar este tipo de IVA"
+                    className="shrink-0 rounded-lg px-2 py-2 text-xl leading-none text-teal-900/40"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={addIvaLine}
+            className="mt-2 text-sm font-medium text-teal-700 underline underline-offset-2"
+          >
+            + Añadir otro tipo de IVA
+          </button>
         </div>
 
         <label className="flex flex-col gap-1">

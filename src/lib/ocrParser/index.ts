@@ -1,14 +1,15 @@
 import { parseDate } from './parseDate'
 import { parseTotal } from './parseAmounts'
-import { parseIva, type IvaResult } from './parseIva'
+import { parseIva } from './parseIva'
 import { parseVendor } from './parseVendor'
 import type { ParsedField } from './types'
+import type { IvaLine } from '../../types/ticket'
 
 export interface ParsedTicketFields {
   date: ParsedField<string>
   vendor: ParsedField<string>
   total: ParsedField<number>
-  iva: ParsedField<IvaResult>
+  iva: ParsedField<IvaLine[]>
 }
 
 export function parseTicketText(text: string): ParsedTicketFields {
@@ -20,4 +21,4 @@ export function parseTicketText(text: string): ParsedTicketFields {
   }
 }
 
-export type { ParsedField, IvaResult }
+export type { ParsedField }

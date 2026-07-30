@@ -30,15 +30,25 @@ export async function syncTicket(ticket: Ticket): Promise<void> {
   const { webViewLink } = await uploadImage(fileName, ticket.imageBlob, folderId)
 
   const f = ticket.fields
-  const base = f?.total != null && f?.ivaAmount != null ? f.total - f.ivaAmount : ''
+  const ivaLines = f?.ivaLines ?? []
+  const hasIvaAmounts = ivaLines.some((line) => line.amount != null)
+  const ivaTotal = ivaLines.reduce((sum, line) => sum + (line.amount ?? 0), 0)
+  const ivaBreakdown = ivaLines
+    .map((line) => {
+      const pct = line.percent != null ? `${line.percent}%` : '?%'
+      const amt = line.amount != null ? `${line.amount.toFixed(2)}€` : '?€'
+      return `${pct}: ${amt}`
+    })
+    .join('; ')
+  const base = f?.total != null && hasIvaAmounts ? f.total - ivaTotal : ''
   const row = [
     f?.date ?? '',
     `T${getQuarter(date)}`,
     f?.vendor ?? '',
     '',
     base,
-    f?.ivaPercent ?? '',
-    f?.ivaAmount ?? '',
+    ivaBreakdown,
+    hasIvaAmounts ? ivaTotal : '',
     f?.total ?? '',
     f?.category ?? '',
     webViewLink,

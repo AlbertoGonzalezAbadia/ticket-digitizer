@@ -19,12 +19,19 @@ export type TicketCategory = (typeof TICKET_CATEGORIES)[number]
 // free-typed recipient name (also gets its own folder, just not preset).
 export const RECIPIENT_PRESETS = ['Elliard', 'Hacienda'] as const
 
+// A single ticket can carry more than one tax rate (e.g. a supermarket
+// receipt with 21% and 10% items on the same slip), and not every rate is
+// the Spanish 21% default — so tax is a list, not a single percent/amount.
+export interface IvaLine {
+  percent: number | null
+  amount: number | null
+}
+
 export interface TicketFields {
   date: string | null
   vendor: string | null
   total: number | null
-  ivaPercent: number | null
-  ivaAmount: number | null
+  ivaLines: IvaLine[]
   category: TicketCategory | null
   recipient: string | null
 }

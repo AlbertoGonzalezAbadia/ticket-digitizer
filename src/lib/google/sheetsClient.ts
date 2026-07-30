@@ -14,7 +14,7 @@ export const HEADER_ROW = [
   'Proveedor/Comercio',
   'NIF/CIF',
   'Base Imponible',
-  '% IVA',
+  'Desglose IVA',
   'Importe IVA',
   'Total',
   'Categoría',
