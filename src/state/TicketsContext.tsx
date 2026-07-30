@@ -25,6 +25,8 @@ interface TicketsContextValue {
   discardTicket: (id: string) => Promise<void>
   /** Must be called from a user gesture — may trigger the Google sign-in popup. */
   syncTicketNow: (id: string) => Promise<void>
+  /** Syncs every confirmed/error ticket, one at a time. Same user-gesture requirement as syncTicketNow. */
+  syncAllPending: () => Promise<void>
 }
 
 const TicketsContext = createContext<TicketsContextValue | null>(null)
@@ -101,21 +103,36 @@ export function TicketsProvider({ children }: { children: ReactNode }) {
     [refresh],
   )
 
+  const syncOne = useCallback(async (ticket: Ticket) => {
+    try {
+      await ensureAccessToken()
+      await syncTicket(ticket)
+      await markTicketSynced(ticket.id)
+    } catch {
+      await markTicketSyncError(ticket.id)
+    }
+  }, [])
+
   const syncTicketNow = useCallback(
     async (id: string) => {
       const ticket = tickets.find((t) => t.id === id)
       if (!ticket) return
-      try {
-        await ensureAccessToken()
-        await syncTicket(ticket)
-        await markTicketSynced(id)
-      } catch {
-        await markTicketSyncError(id)
-      }
+      await syncOne(ticket)
       await refresh()
     },
-    [tickets, refresh],
+    [tickets, syncOne, refresh],
   )
+
+  const syncAllPending = useCallback(async () => {
+    // Snapshot up front — sequential, not parallel, so syncs don't race
+    // each other creating the same Drive folder/spreadsheet twice, and one
+    // failure doesn't abort the rest.
+    const pending = tickets.filter((t) => t.status === 'confirmed' || t.status === 'error')
+    for (const ticket of pending) {
+      await syncOne(ticket)
+    }
+    await refresh()
+  }, [tickets, syncOne, refresh])
 
   // 'captured' tickets aren't sync-eligible yet — they need confirmation
   // first — so counting them here would overstate what's actually waiting
@@ -132,6 +149,7 @@ export function TicketsProvider({ children }: { children: ReactNode }) {
         confirmTicket,
         discardTicket,
         syncTicketNow,
+        syncAllPending,
       }}
     >
       {children}

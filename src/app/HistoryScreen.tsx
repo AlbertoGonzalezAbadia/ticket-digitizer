@@ -64,7 +64,7 @@ function SyncButton({ ticket }: { ticket: Ticket }) {
   )
 }
 
-function TicketRow({ ticket }: { ticket: Ticket }) {
+function TicketRow({ ticket, onEdit }: { ticket: Ticket; onEdit: (id: string) => void }) {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const isPdf = ticket.imageBlob.type === 'application/pdf'
 
@@ -109,13 +109,48 @@ function TicketRow({ ticket }: { ticket: Ticket }) {
           {STATUS_LABEL[ticket.status]}
         </p>
         <OcrStatus ticket={ticket} />
-        <SyncButton ticket={ticket} />
+        <div className="flex flex-wrap gap-2">
+          {ticket.status !== 'synced' && (
+            <Button
+              variant="secondary"
+              onClick={() => onEdit(ticket.id)}
+              className="mt-2 px-3 py-1.5 text-xs"
+            >
+              Editar
+            </Button>
+          )}
+          <SyncButton ticket={ticket} />
+        </div>
       </div>
     </li>
   )
 }
 
-export function HistoryScreen() {
+interface HistoryScreenProps {
+  onEditTicket: (id: string) => void
+}
+
+function SyncAllButton() {
+  const { tickets, syncAllPending } = useTickets()
+  const [syncing, setSyncing] = useState(false)
+  const pendingCount = tickets.filter((t) => t.status === 'confirmed' || t.status === 'error').length
+
+  if (pendingCount === 0) return null
+
+  const handleClick = async () => {
+    setSyncing(true)
+    await syncAllPending()
+    setSyncing(false)
+  }
+
+  return (
+    <Button onClick={handleClick} disabled={syncing} className="mb-4 w-full py-2.5 text-sm">
+      {syncing ? 'Sincronizando...' : `Sincronizar todo (${pendingCount})`}
+    </Button>
+  )
+}
+
+export function HistoryScreen({ onEditTicket }: HistoryScreenProps) {
   const { tickets, loading } = useTickets()
   const [dateFilter, setDateFilter] = useState('')
   const [recipientFilter, setRecipientFilter] = useState('')
@@ -141,6 +176,8 @@ export function HistoryScreen() {
   return (
     <div className="flex h-full flex-col px-6 py-8">
       <h1 className="mb-4 text-lg font-semibold text-teal-950">Historial</h1>
+
+      <SyncAllButton />
 
       {tickets.length > 0 && (
         <div className="mb-4 flex flex-wrap items-end gap-2">
@@ -199,7 +236,7 @@ export function HistoryScreen() {
       ) : (
         <ul className="flex flex-col gap-2 overflow-y-auto">
           {filtered.map((ticket) => (
-            <TicketRow key={ticket.id} ticket={ticket} />
+            <TicketRow key={ticket.id} ticket={ticket} onEdit={onEditTicket} />
           ))}
         </ul>
       )}

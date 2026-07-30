@@ -12,6 +12,7 @@ function App() {
   const [screen, setScreen] = useState<Screen>('camera')
   const [hasCaptured, setHasCaptured] = useState(false)
   const [confirmingTicketId, setConfirmingTicketId] = useState<string | null>(null)
+  const [confirmMode, setConfirmMode] = useState<'capture' | 'edit'>('capture')
 
   return (
     <TicketsProvider>
@@ -20,6 +21,7 @@ function App() {
           {confirmingTicketId ? (
             <ConfirmScreen
               ticketId={confirmingTicketId}
+              mode={confirmMode}
               onDone={() => setConfirmingTicketId(null)}
             />
           ) : (
@@ -28,11 +30,19 @@ function App() {
                 <CameraScreen
                   onCaptured={(ticketId) => {
                     setHasCaptured(true)
+                    setConfirmMode('capture')
                     setConfirmingTicketId(ticketId)
                   }}
                 />
               )}
-              {screen === 'history' && <HistoryScreen />}
+              {screen === 'history' && (
+                <HistoryScreen
+                  onEditTicket={(ticketId) => {
+                    setConfirmMode('edit')
+                    setConfirmingTicketId(ticketId)
+                  }}
+                />
+              )}
               {screen === 'settings' && <SettingsScreen />}
             </>
           )}

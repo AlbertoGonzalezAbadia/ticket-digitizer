@@ -7,6 +7,8 @@ import { RECIPIENT_PRESETS, type TicketCategory, type TicketFields } from '../ty
 
 interface ConfirmScreenProps {
   ticketId: string
+  /** 'edit' (reopened from History, before it's synced) must never delete the ticket on cancel. */
+  mode: 'capture' | 'edit'
   onDone: () => void
 }
 
@@ -32,26 +34,36 @@ const fieldClass = (lowConfidence: boolean) =>
     lowConfidence ? 'border-amber-400 bg-amber-50' : 'border-teal-200 bg-white'
   }`
 
-export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
+export function ConfirmScreen({ ticketId, mode, onDone }: ConfirmScreenProps) {
   const { tickets, confirmTicket, discardTicket } = useTickets()
   const ticket = tickets.find((t) => t.id === ticketId)
 
   const parsed = useMemo(() => parseTicketText(ticket?.ocrText ?? ''), [ticket?.ocrText])
 
-  const [form, setForm] = useState<FormState>({
-    date: parsed.date.value ?? '',
-    vendor: parsed.vendor.value ?? '',
-    total: parsed.total.value !== null ? String(parsed.total.value) : '',
-    ivaLines:
-      parsed.iva.value && parsed.iva.value.length > 0
-        ? parsed.iva.value.map((line) => ({
+  // Re-opening an already-confirmed ticket (from History's "Editar") must
+  // start from what was actually saved, not re-run the OCR guess from
+  // scratch — otherwise editing would silently discard prior corrections.
+  // Falls back to the freshly-parsed OCR values only for a brand-new,
+  // never-confirmed ticket, which has no saved fields yet.
+  const [form, setForm] = useState<FormState>(() => {
+    const f = ticket?.fields
+    const savedIvaLines = f?.ivaLines && f.ivaLines.length > 0 ? f.ivaLines : null
+    const recipient = f?.recipient ?? null
+    const isPresetRecipient = recipient != null && (RECIPIENT_PRESETS as readonly string[]).includes(recipient)
+    return {
+      date: f?.date ?? parsed.date.value ?? '',
+      vendor: f?.vendor ?? parsed.vendor.value ?? '',
+      total: f?.total != null ? String(f.total) : parsed.total.value !== null ? String(parsed.total.value) : '',
+      ivaLines: (savedIvaLines ?? parsed.iva.value ?? []).length
+        ? (savedIvaLines ?? parsed.iva.value ?? []).map((line) => ({
             percent: line.percent != null ? String(line.percent) : '',
             amount: line.amount != null ? String(line.amount) : '',
           }))
         : [{ percent: '', amount: '' }],
-    category: '',
-    recipientChoice: '',
-    recipientCustom: '',
+      category: f?.category ?? '',
+      recipientChoice: recipient === null ? '' : isPresetRecipient ? recipient : OTHER_RECIPIENT,
+      recipientCustom: recipient !== null && !isPresetRecipient ? recipient : '',
+    }
   })
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -121,9 +133,15 @@ export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
     onDone()
   }
 
+  const handleCancel = () => {
+    onDone()
+  }
+
   return (
     <div className="flex h-full flex-col overflow-y-auto px-6 py-6">
-      <h1 className="mb-4 text-lg font-semibold text-teal-950">Confirmar ticket</h1>
+      <h1 className="mb-4 text-lg font-semibold text-teal-950">
+        {mode === 'edit' ? 'Editar ticket' : 'Confirmar ticket'}
+      </h1>
 
       {imageUrl && isPdf && (
         <div className="mb-4">
@@ -200,9 +218,15 @@ export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
         <Button onClick={handleSave} disabled={saving} className="w-full py-3 text-base">
           {saving ? 'Guardando...' : 'Guardar'}
         </Button>
-        <Button variant="secondary" onClick={handleRetake} disabled={saving} className="w-full py-2.5">
-          {isPdf ? 'Descartar' : 'Repetir foto'}
-        </Button>
+        {mode === 'edit' ? (
+          <Button variant="secondary" onClick={handleCancel} disabled={saving} className="w-full py-2.5">
+            Cancelar
+          </Button>
+        ) : (
+          <Button variant="secondary" onClick={handleRetake} disabled={saving} className="w-full py-2.5">
+            {isPdf ? 'Descartar' : 'Repetir foto'}
+          </Button>
+        )}
       </div>
     </div>
   )
