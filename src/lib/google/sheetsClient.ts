@@ -23,6 +23,7 @@ export const HEADER_ROW = [
   'Notas',
   'Fecha de Alta',
   'Estado',
+  'Destinatario',
 ]
 
 interface SheetProperties {
@@ -39,6 +40,18 @@ async function getSheetTitles(spreadsheetId: string): Promise<string[]> {
   return sheets.map((s) => s.properties.title)
 }
 
+async function writeHeaderRow(spreadsheetId: string, year: string): Promise<void> {
+  const lastColumn = String.fromCharCode('A'.charCodeAt(0) + HEADER_ROW.length - 1)
+  await fetch(
+    `${SHEETS_API}/${spreadsheetId}/values/${year}!A1:${lastColumn}1?valueInputOption=RAW`,
+    {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ values: [HEADER_ROW] }),
+    },
+  )
+}
+
 async function addYearSheet(spreadsheetId: string, year: string): Promise<void> {
   const res = await fetch(`${SHEETS_API}/${spreadsheetId}:batchUpdate`, {
     method: 'POST',
@@ -46,19 +59,17 @@ async function addYearSheet(spreadsheetId: string, year: string): Promise<void> 
     body: JSON.stringify({ requests: [{ addSheet: { properties: { title: year } } }] }),
   })
   if (!res.ok) throw new Error('Error al crear la pestaña del año')
-
-  await fetch(`${SHEETS_API}/${spreadsheetId}/values/${year}!A1:N1?valueInputOption=RAW`, {
-    method: 'PUT',
-    headers: authHeaders(),
-    body: JSON.stringify({ values: [HEADER_ROW] }),
-  })
 }
 
+// Also re-writes the header row on every call (cheap, idempotent) so that
+// existing year tabs pick up new columns added later — like Destinatario —
+// instead of silently appending unlabeled data past the old header width.
 export async function ensureYearSheet(spreadsheetId: string, year: string): Promise<void> {
   const titles = await getSheetTitles(spreadsheetId)
   if (!titles.includes(year)) {
     await addYearSheet(spreadsheetId, year)
   }
+  await writeHeaderRow(spreadsheetId, year)
 }
 
 export async function appendTicketRow(

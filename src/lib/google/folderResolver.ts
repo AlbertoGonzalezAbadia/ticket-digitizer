@@ -3,6 +3,7 @@ import { ensureYearSheet } from './sheetsClient'
 
 const ROOT_FOLDER_NAME = 'Tickets'
 const SPREADSHEET_NAME = 'Tickets - Registro'
+const UNSPECIFIED_RECIPIENT_FOLDER = 'Sin especificar'
 
 const SPANISH_MONTHS = [
   'Enero',
@@ -35,14 +36,21 @@ export interface TicketDestination {
   year: string
 }
 
-// Idempotent: re-running this for the same date never creates duplicate
-// folders/spreadsheets — it always finds the existing ones first.
-export async function resolveDestination(ticketDate: Date): Promise<TicketDestination> {
+// Idempotent: re-running this for the same date/recipient never creates
+// duplicate folders/spreadsheets — it always finds the existing ones first.
+// Folder layout: Tickets/{recipient}/{year}/{month}/ — each recipient
+// (Elliard, Hacienda, or a custom name) gets its own fully separate tree.
+export async function resolveDestination(
+  ticketDate: Date,
+  recipient: string | null,
+): Promise<TicketDestination> {
   const year = String(ticketDate.getFullYear())
   const month = getMonthFolderName(ticketDate)
+  const recipientFolderName = recipient?.trim() || UNSPECIFIED_RECIPIENT_FOLDER
 
   const rootFolderId = await findOrCreateFolder(ROOT_FOLDER_NAME)
-  const yearFolderId = await findOrCreateFolder(year, rootFolderId)
+  const recipientFolderId = await findOrCreateFolder(recipientFolderName, rootFolderId)
+  const yearFolderId = await findOrCreateFolder(year, recipientFolderId)
   const monthFolderId = await findOrCreateFolder(month, yearFolderId)
 
   let spreadsheetId = await findSpreadsheet(SPREADSHEET_NAME, rootFolderId)

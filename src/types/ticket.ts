@@ -15,6 +15,10 @@ export const TICKET_CATEGORIES = [
 
 export type TicketCategory = (typeof TICKET_CATEGORIES)[number]
 
+// Preset recipients get their own Drive folder tree; anything else is a
+// free-typed recipient name (also gets its own folder, just not preset).
+export const RECIPIENT_PRESETS = ['Elliard', 'Hacienda'] as const
+
 export interface TicketFields {
   date: string | null
   vendor: string | null
@@ -22,6 +26,7 @@ export interface TicketFields {
   ivaPercent: number | null
   ivaAmount: number | null
   category: TicketCategory | null
+  recipient: string | null
 }
 
 export interface Ticket {

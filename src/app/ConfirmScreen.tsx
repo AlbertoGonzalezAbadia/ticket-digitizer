@@ -2,12 +2,19 @@ import { useEffect, useMemo, useState } from 'react'
 import { Button } from '../components/Button'
 import { useTickets } from '../state/TicketsContext'
 import { parseTicketText } from '../lib/ocrParser'
-import { TICKET_CATEGORIES, type TicketCategory, type TicketFields } from '../types/ticket'
+import {
+  RECIPIENT_PRESETS,
+  TICKET_CATEGORIES,
+  type TicketCategory,
+  type TicketFields,
+} from '../types/ticket'
 
 interface ConfirmScreenProps {
   ticketId: string
   onDone: () => void
 }
+
+const OTHER_RECIPIENT = 'Otro'
 
 interface FormState {
   date: string
@@ -16,6 +23,8 @@ interface FormState {
   ivaPercent: string
   ivaAmount: string
   category: TicketCategory | ''
+  recipientChoice: string
+  recipientCustom: string
 }
 
 const fieldClass = (lowConfidence: boolean) =>
@@ -36,6 +45,8 @@ export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
     ivaPercent: parsed.iva.value?.percent != null ? String(parsed.iva.value.percent) : '',
     ivaAmount: parsed.iva.value?.amount != null ? String(parsed.iva.value.amount) : '',
     category: '',
+    recipientChoice: '',
+    recipientCustom: '',
   })
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -58,6 +69,10 @@ export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
 
   const handleSave = async () => {
     setSaving(true)
+    const recipient =
+      form.recipientChoice === OTHER_RECIPIENT
+        ? form.recipientCustom.trim() || null
+        : form.recipientChoice || null
     const fields: TicketFields = {
       date: form.date || null,
       vendor: form.vendor.trim() || null,
@@ -65,6 +80,7 @@ export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
       ivaPercent: form.ivaPercent ? parseFloat(form.ivaPercent) : null,
       ivaAmount: form.ivaAmount ? parseFloat(form.ivaAmount) : null,
       category: form.category || null,
+      recipient,
     }
     await confirmTicket(ticketId, fields)
     setSaving(false)
@@ -165,6 +181,29 @@ export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
             ))}
           </select>
         </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-teal-900">Enviar a</span>
+          <select value={form.recipientChoice} onChange={update('recipientChoice')} className={fieldClass(false)}>
+            <option value="">Sin especificar</option>
+            {RECIPIENT_PRESETS.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+            <option value={OTHER_RECIPIENT}>Otro...</option>
+          </select>
+        </label>
+
+        {form.recipientChoice === OTHER_RECIPIENT && (
+          <input
+            type="text"
+            value={form.recipientCustom}
+            onChange={update('recipientCustom')}
+            placeholder="Nombre del destinatario"
+            className={fieldClass(false)}
+          />
+        )}
       </div>
 
       <div className="mt-6 flex flex-col gap-2">

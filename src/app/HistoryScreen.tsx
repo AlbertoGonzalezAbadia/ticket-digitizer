@@ -99,6 +99,7 @@ function TicketRow({ ticket }: { ticket: Ticket }) {
               {fields.total !== null ? `${fields.total.toFixed(2)} €` : 'Sin importe'}
               {fields.date ? ` · ${fields.date}` : ''}
               {fields.category ? ` · ${fields.category}` : ''}
+              {fields.recipient ? ` · Para: ${fields.recipient}` : ''}
             </p>
           </>
         ) : (
@@ -118,16 +119,26 @@ export function HistoryScreen() {
   const { tickets, loading } = useTickets()
   const [dateFilter, setDateFilter] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<TicketCategory | ''>('')
+  const [recipientFilter, setRecipientFilter] = useState('')
+
+  const recipientOptions = useMemo(() => {
+    const set = new Set<string>()
+    tickets.forEach((t) => {
+      if (t.fields?.recipient) set.add(t.fields.recipient)
+    })
+    return Array.from(set).sort()
+  }, [tickets])
 
   const filtered = useMemo(() => {
     return tickets.filter((t) => {
       if (dateFilter && ticketDay(t) !== dateFilter) return false
       if (categoryFilter && t.fields?.category !== categoryFilter) return false
+      if (recipientFilter && t.fields?.recipient !== recipientFilter) return false
       return true
     })
-  }, [tickets, dateFilter, categoryFilter])
+  }, [tickets, dateFilter, categoryFilter, recipientFilter])
 
-  const hasActiveFilters = dateFilter !== '' || categoryFilter !== ''
+  const hasActiveFilters = dateFilter !== '' || categoryFilter !== '' || recipientFilter !== ''
 
   return (
     <div className="flex h-full flex-col px-6 py-8">
@@ -159,12 +170,30 @@ export function HistoryScreen() {
               ))}
             </select>
           </label>
+          {recipientOptions.length > 0 && (
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-teal-900/70">Destinatario</span>
+              <select
+                value={recipientFilter}
+                onChange={(e) => setRecipientFilter(e.target.value)}
+                className="rounded-lg border border-teal-200 bg-white px-2 py-1.5 text-sm text-teal-950"
+              >
+                <option value="">Todos</option>
+                {recipientOptions.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {hasActiveFilters && (
             <button
               type="button"
               onClick={() => {
                 setDateFilter('')
                 setCategoryFilter('')
+                setRecipientFilter('')
               }}
               className="mb-1.5 text-xs font-medium text-teal-700 underline underline-offset-2"
             >

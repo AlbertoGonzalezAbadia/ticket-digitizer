@@ -19,7 +19,7 @@ function slugify(text: string): string {
 
 export async function syncTicket(ticket: Ticket): Promise<void> {
   const date = ticket.fields?.date ? new Date(ticket.fields.date) : new Date(ticket.createdAt)
-  const { folderId, spreadsheetId, year } = await resolveDestination(date)
+  const { folderId, spreadsheetId, year } = await resolveDestination(date, ticket.fields?.recipient ?? null)
 
   const createdAt = new Date(ticket.createdAt)
   const stamp = createdAt.toISOString().replace(/[-:]/g, '').replace('T', '_').slice(0, 15)
@@ -46,6 +46,7 @@ export async function syncTicket(ticket: Ticket): Promise<void> {
     '',
     ticket.createdAt,
     ticket.ocrConfidence != null && ticket.ocrConfidence < 60 ? 'Revisar' : 'OK',
+    f?.recipient ?? '',
   ]
   await appendTicketRow(spreadsheetId, year, row)
 }
