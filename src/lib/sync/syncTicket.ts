@@ -40,7 +40,7 @@ function sanitizeForSheets(text: string): string {
 
 export async function syncTicket(ticket: Ticket): Promise<void> {
   const date = ticket.fields?.date ? parseLocalDate(ticket.fields.date) : new Date(ticket.createdAt)
-  const { folderId, spreadsheetId, year } = await resolveDestination(date, ticket.fields?.recipient ?? null)
+  const { folderId, spreadsheetIds, year } = await resolveDestination(date, ticket.fields?.recipient ?? null)
 
   const createdAt = new Date(ticket.createdAt)
   const stamp = createdAt.toISOString().replace(/[-:]/g, '').replace('T', '_').slice(0, 15)
@@ -79,6 +79,14 @@ export async function syncTicket(ticket: Ticket): Promise<void> {
     ticket.ocrConfidence != null && ticket.ocrConfidence < 60 ? 'Revisar' : 'OK',
     f?.recipient ? sanitizeForSheets(f.recipient) : '',
   ]
-  await appendTicketRow(spreadsheetId, year, row)
+  // Written to both the general spreadsheet and the recipient-specific one
+  // (see resolveDestination). Note: like the image upload above, this isn't
+  // idempotent — if a retry re-runs after one of these writes already
+  // succeeded, that row (or image) gets duplicated rather than skipped.
+  // Pre-existing limitation, not new here; a real fix needs a dedup check
+  // (e.g. by ticket ID) before each write, which is out of scope for now.
+  for (const spreadsheetId of spreadsheetIds) {
+    await appendTicketRow(spreadsheetId, year, row)
+  }
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Button } from '../components/Button'
 import { useTickets } from '../state/TicketsContext'
 import { parseTicketText } from '../lib/ocrParser'
+import { addCustomRecipient, getCustomRecipients } from '../lib/db/recipientRepository'
 import { RECIPIENT_PRESETS, type TicketCategory, type TicketFields } from '../types/ticket'
 
 interface ConfirmScreenProps {
@@ -54,6 +55,7 @@ export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
   })
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [customRecipients, setCustomRecipients] = useState<string[]>([])
 
   useEffect(() => {
     if (!ticket) return
@@ -61,6 +63,19 @@ export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
     setImageUrl(url)
     return () => URL.revokeObjectURL(url)
   }, [ticket])
+
+  useEffect(() => {
+    getCustomRecipients().then(setCustomRecipients)
+  }, [])
+
+  // Presets ("Elliard") plus any custom recipient typed in before (and thus
+  // already saved via addCustomRecipient) — so "Otros" only ever offers a
+  // free-text box for a genuinely new name, not one already picked once.
+  const recipientOptions = useMemo(() => {
+    const seen = new Set<string>(RECIPIENT_PRESETS)
+    const extra = customRecipients.filter((name) => !seen.has(name))
+    return [...RECIPIENT_PRESETS, ...extra]
+  }, [customRecipients])
 
   if (!ticket) {
     return null
@@ -78,6 +93,11 @@ export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
       form.recipientChoice === OTHER_RECIPIENT
         ? form.recipientCustom.trim() || null
         : form.recipientChoice || null
+    // A newly typed recipient becomes permanent — it'll show up as its own
+    // dropdown option next time instead of needing "Otros" again.
+    if (recipient && !recipientOptions.includes(recipient)) {
+      await addCustomRecipient(recipient)
+    }
     const fields: TicketFields = {
       date: form.date || null,
       vendor: form.vendor.trim() || null,
@@ -156,12 +176,12 @@ export function ConfirmScreen({ ticketId, onDone }: ConfirmScreenProps) {
           <span className="text-sm font-medium text-teal-900">Enviar a</span>
           <select value={form.recipientChoice} onChange={update('recipientChoice')} className={fieldClass(false)}>
             <option value="">Sin especificar</option>
-            {RECIPIENT_PRESETS.map((name) => (
+            {recipientOptions.map((name) => (
               <option key={name} value={name}>
                 {name}
               </option>
             ))}
-            <option value={OTHER_RECIPIENT}>Otros</option>
+            <option value={OTHER_RECIPIENT}>Otros (nuevo)</option>
           </select>
         </label>
 

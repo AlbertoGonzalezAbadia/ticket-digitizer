@@ -32,14 +32,25 @@ export function getMonthFolderName(date: Date): string {
 
 export interface TicketDestination {
   folderId: string
-  spreadsheetId: string
+  // Every ticket goes into two spreadsheets: the general one at the Tickets
+  // root (every recipient combined) and one scoped to just that recipient's
+  // folder — so both "all tickets" and "just Elliard's tickets" exist as
+  // ready-to-send Excel files without anyone having to filter/export by hand.
+  spreadsheetIds: string[]
   year: string
+}
+
+async function findOrCreateSpreadsheet(name: string, parentId: string): Promise<string> {
+  const existing = await findSpreadsheet(name, parentId)
+  if (existing) return existing
+  return createSpreadsheetFile(name, parentId)
 }
 
 // Idempotent: re-running this for the same date/recipient never creates
 // duplicate folders/spreadsheets — it always finds the existing ones first.
 // Folder layout: Tickets/{recipient}/{year}/{month}/ — each recipient
-// (Elliard, Hacienda, or a custom name) gets its own fully separate tree.
+// (Elliard, a custom name, or "Sin especificar") gets its own fully
+// separate tree, and its own spreadsheet inside that tree.
 export async function resolveDestination(
   ticketDate: Date,
   recipient: string | null,
@@ -53,11 +64,13 @@ export async function resolveDestination(
   const yearFolderId = await findOrCreateFolder(year, recipientFolderId)
   const monthFolderId = await findOrCreateFolder(month, yearFolderId)
 
-  let spreadsheetId = await findSpreadsheet(SPREADSHEET_NAME, rootFolderId)
-  if (!spreadsheetId) {
-    spreadsheetId = await createSpreadsheetFile(SPREADSHEET_NAME, rootFolderId)
-  }
-  await ensureYearSheet(spreadsheetId, year)
+  const generalSpreadsheetId = await findOrCreateSpreadsheet(SPREADSHEET_NAME, rootFolderId)
+  const recipientSpreadsheetId = await findOrCreateSpreadsheet(SPREADSHEET_NAME, recipientFolderId)
+  const spreadsheetIds = [generalSpreadsheetId, recipientSpreadsheetId]
 
-  return { folderId: monthFolderId, spreadsheetId, year }
+  for (const spreadsheetId of spreadsheetIds) {
+    await ensureYearSheet(spreadsheetId, year)
+  }
+
+  return { folderId: monthFolderId, spreadsheetIds, year }
 }
