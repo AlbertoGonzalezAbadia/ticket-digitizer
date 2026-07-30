@@ -1,6 +1,44 @@
 import { useState } from 'react'
 import { Button } from '../components/Button'
 import { isSignedIn, signIn, signOut } from '../lib/google/auth'
+import { useTickets } from '../state/TicketsContext'
+
+function DeleteAllCard() {
+  const { tickets, deleteAllTickets } = useTickets()
+  const [deleting, setDeleting] = useState(false)
+  const unsyncedCount = tickets.filter((t) => t.status !== 'synced').length
+
+  if (tickets.length === 0) return null
+
+  const handleClick = async () => {
+    const warning =
+      unsyncedCount > 0
+        ? `¿Borrar los ${tickets.length} tickets de la app? ${unsyncedCount} todavía no se han sincronizado — sus datos se perderán. Lo que ya está en Drive/Sheets no se toca.`
+        : `¿Borrar los ${tickets.length} tickets de la app? Todos ya están sincronizados en Drive/Sheets, así que esos datos no se tocan — solo desaparecen de aquí.`
+    if (!window.confirm(warning)) return
+    setDeleting(true)
+    await deleteAllTickets()
+    setDeleting(false)
+  }
+
+  return (
+    <div className="rounded-2xl border border-red-100 bg-white p-4 shadow-sm shadow-teal-900/5">
+      <p className="mb-1 text-sm font-medium text-teal-950">Borrar todos los tickets</p>
+      <p className="mb-3 text-xs text-teal-900/60">
+        Borra los {tickets.length} tickets de esta app (no de Drive/Sheets).
+        {unsyncedCount > 0 && ` ${unsyncedCount} sin sincronizar se perderían.`}
+      </p>
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={deleting}
+        className="inline-flex w-full items-center justify-center rounded-2xl border border-red-200 bg-white py-2.5 font-medium text-red-600 transition hover:bg-red-50 active:scale-[0.97] disabled:opacity-50"
+      >
+        {deleting ? 'Borrando...' : 'Borrar todos'}
+      </button>
+    </div>
+  )
+}
 
 export function SettingsScreen() {
   const [connected, setConnected] = useState(isSignedIn())
@@ -70,6 +108,8 @@ export function SettingsScreen() {
             </>
           )}
         </div>
+
+        <DeleteAllCard />
       </div>
 
       <p className="mt-auto pt-6 text-center text-xs text-teal-900/30">

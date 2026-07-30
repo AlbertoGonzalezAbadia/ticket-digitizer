@@ -82,6 +82,32 @@ function SyncButton({ ticket }: { ticket: Ticket }) {
   )
 }
 
+function DeleteButton({ ticket }: { ticket: Ticket }) {
+  const { discardTicket } = useTickets()
+  const [deleting, setDeleting] = useState(false)
+
+  const handleClick = async () => {
+    const warning =
+      ticket.status === 'synced'
+        ? '¿Borrar este ticket de la app? Ya está guardado en Drive/Sheets, así que eso no se toca — solo desaparece de aquí.'
+        : '¿Borrar este ticket de la app? No se ha sincronizado todavía, así que sus datos se perderán.'
+    if (!window.confirm(warning)) return
+    setDeleting(true)
+    await discardTicket(ticket.id)
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={deleting}
+      className="mt-2 inline-flex items-center justify-center rounded-2xl border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 active:scale-[0.97] disabled:opacity-50"
+    >
+      Borrar
+    </button>
+  )
+}
+
 function TicketRow({ ticket, onEdit }: { ticket: Ticket; onEdit: (id: string) => void }) {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const isPdf = ticket.imageBlob.type === 'application/pdf'
@@ -138,6 +164,7 @@ function TicketRow({ ticket, onEdit }: { ticket: Ticket; onEdit: (id: string) =>
             </Button>
           )}
           <SyncButton ticket={ticket} />
+          <DeleteButton ticket={ticket} />
         </div>
       </div>
     </li>

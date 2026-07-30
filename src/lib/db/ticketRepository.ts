@@ -42,6 +42,13 @@ export async function deleteTicket(id: string): Promise<void> {
   await db.delete(TICKETS_STORE, id)
 }
 
+// Local-only, like deleteTicket — never touches Drive/Sheets, so anything
+// already synced stays safe there even after this wipes the local history.
+export async function deleteAllTickets(): Promise<void> {
+  const db = await getDb()
+  await db.clear(TICKETS_STORE)
+}
+
 export async function markTicketSynced(id: string): Promise<void> {
   const db = await getDb()
   const ticket = await db.get(TICKETS_STORE, id)

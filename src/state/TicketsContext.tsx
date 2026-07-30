@@ -3,6 +3,7 @@ import type { Ticket, TicketFields } from '../types/ticket'
 import {
   addCapturedTicket,
   confirmTicket as confirmTicketInDb,
+  deleteAllTickets as deleteAllTicketsInDb,
   deleteTicket as deleteTicketInDb,
   getAllTickets,
   markTicketSynced,
@@ -23,6 +24,8 @@ interface TicketsContextValue {
   captureTicket: (file: File) => Promise<string>
   confirmTicket: (id: string, fields: TicketFields) => Promise<void>
   discardTicket: (id: string) => Promise<void>
+  /** Local-only wipe of every ticket — never touches Drive/Sheets. */
+  deleteAllTickets: () => Promise<void>
   /** Must be called from a user gesture — may trigger the Google sign-in popup. */
   syncTicketNow: (id: string) => Promise<void>
   /** Syncs every confirmed/error ticket, one at a time. Same user-gesture requirement as syncTicketNow. */
@@ -103,6 +106,11 @@ export function TicketsProvider({ children }: { children: ReactNode }) {
     [refresh],
   )
 
+  const deleteAllTickets = useCallback(async () => {
+    await deleteAllTicketsInDb()
+    await refresh()
+  }, [refresh])
+
   const syncOne = useCallback(async (ticket: Ticket) => {
     try {
       await ensureAccessToken()
@@ -148,6 +156,7 @@ export function TicketsProvider({ children }: { children: ReactNode }) {
         captureTicket,
         confirmTicket,
         discardTicket,
+        deleteAllTickets,
         syncTicketNow,
         syncAllPending,
       }}
