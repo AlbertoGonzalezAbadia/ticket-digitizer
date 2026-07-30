@@ -4,8 +4,29 @@ import { ensureYearSheet } from './sheetsClient'
 const ROOT_FOLDER_NAME = 'Tickets'
 const SPREADSHEET_NAME = 'Tickets - Registro'
 
+const SPANISH_MONTHS = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
+]
+
 export function getQuarter(date: Date): number {
   return Math.floor(date.getMonth() / 3) + 1
+}
+
+// e.g. "07 - Julio" — zero-padded so folders sort correctly in Drive.
+export function getMonthFolderName(date: Date): string {
+  const monthNumber = String(date.getMonth() + 1).padStart(2, '0')
+  return `${monthNumber} - ${SPANISH_MONTHS[date.getMonth()]}`
 }
 
 export interface TicketDestination {
@@ -18,11 +39,11 @@ export interface TicketDestination {
 // folders/spreadsheets — it always finds the existing ones first.
 export async function resolveDestination(ticketDate: Date): Promise<TicketDestination> {
   const year = String(ticketDate.getFullYear())
-  const quarter = `T${getQuarter(ticketDate)}`
+  const month = getMonthFolderName(ticketDate)
 
   const rootFolderId = await findOrCreateFolder(ROOT_FOLDER_NAME)
   const yearFolderId = await findOrCreateFolder(year, rootFolderId)
-  const quarterFolderId = await findOrCreateFolder(quarter, yearFolderId)
+  const monthFolderId = await findOrCreateFolder(month, yearFolderId)
 
   let spreadsheetId = await findSpreadsheet(SPREADSHEET_NAME, rootFolderId)
   if (!spreadsheetId) {
@@ -30,5 +51,5 @@ export async function resolveDestination(ticketDate: Date): Promise<TicketDestin
   }
   await ensureYearSheet(spreadsheetId, year)
 
-  return { folderId: quarterFolderId, spreadsheetId, year }
+  return { folderId: monthFolderId, spreadsheetId, year }
 }
