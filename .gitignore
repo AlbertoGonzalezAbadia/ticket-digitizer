@@ -19,6 +19,9 @@ dev-dist
 # Local test receipt photos — personal, never committed
 test_tickets
 
+# Tesseract language data downloaded by scripts/eval-ocr.ts at run time
+*.traineddata
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

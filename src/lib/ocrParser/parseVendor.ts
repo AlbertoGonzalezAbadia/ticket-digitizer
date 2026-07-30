@@ -3,6 +3,12 @@ import type { ParsedField } from './types'
 // Lines that are purely numbers/dates/amounts/symbols are never the vendor name.
 const NON_VENDOR_LINE = /^[\d\s/\-.,:€%]+$/
 
+// Card-payment terminal slips (as opposed to itemized tickets) print these
+// generic labels above the merchant name in ES/EN/FR — without this filter
+// "CARTE BANCAIRE" gets picked as the "vendor" of a Brioche Doree purchase.
+const PAYMENT_BOILERPLATE =
+  /^(CARTE BANCAIRE|SANS CONTACTO?|CONTACTLESS|TARJETA( BANCARIA)?|DEBIT[O]?|CREDIT[O]?|TICKET CLIENT|CUSTOMER COPY|COPIE CLIENT|COPIA CLIENTE|A CONSERVER)$/i
+
 // Photos that include background around the ticket (table, hands, etc.)
 // often produce garbled OCR noise before the real receipt text — strings of
 // short, disconnected fragments rather than a real name. A genuine vendor
@@ -25,7 +31,12 @@ export function parseVendor(text: string): ParsedField<string> {
   // The vendor name is almost always near the top of the printed ticket,
   // but garbage lines from background noise can push it down a few lines.
   for (const line of lines.slice(0, 8)) {
-    if (line.length >= 3 && !NON_VENDOR_LINE.test(line) && !looksLikeGarbage(line)) {
+    if (
+      line.length >= 3 &&
+      !NON_VENDOR_LINE.test(line) &&
+      !looksLikeGarbage(line) &&
+      !PAYMENT_BOILERPLATE.test(line)
+    ) {
       return { value: line, confidence: 'high' }
     }
   }

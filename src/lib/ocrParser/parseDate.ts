@@ -11,7 +11,9 @@ const MONTH_MAP: Record<string, number> = {
   abril: 3, abr: 3, april: 3, apr: 3, avril: 3, avr: 3,
   mayo: 4, may: 4, mai: 4,
   junio: 5, jun: 5, june: 5, juin: 5,
-  julio: 6, jul: 6, july: 6, juillet: 6, juil: 6,
+  // "jui" is an SSP France/Brioche Doree POS abbreviation confirmed to mean
+  // juillet (July), not juin — resolved against that receipt's payment slip.
+  julio: 6, jul: 6, july: 6, juillet: 6, juil: 6, jui: 6,
   agosto: 7, ago: 7, august: 7, aug: 7, aout: 7,
   septiembre: 8, setiembre: 8, sep: 8, sept: 8, september: 8, septembre: 8,
   octubre: 9, oct: 9, october: 9, octobre: 9,
@@ -26,6 +28,11 @@ const SPANISH_LONG_DATE = /\b(\d{1,2})\s+de\s+([a-zA-ZÀ-ÿ]+)\s+(?:de\s+)?(\d{4
 const DAY_MONTHNAME_YEAR = /\b(\d{1,2})\s+([a-zA-ZÀ-ÿ]{3,})\.?,?\s+(\d{4}|\d{2})\b/gi
 // "January 15, 2026" / "Jan 15 2026" — month first (common in English).
 const MONTHNAME_DAY_YEAR = /\b([a-zA-ZÀ-ÿ]{3,})\.?\s+(\d{1,2}),?\s+(\d{4}|\d{2})\b/gi
+// "Jui29'26" — some French POS printouts glue month+day+year with no
+// spaces and an apostrophe before a 2-digit year (seen on a real SSP
+// France/Brioche Doree receipt, cross-checked against that same
+// transaction's card-payment slip, which printed "29/07/26" in full).
+const COMPACT_MONTHNAME_DAY_YEAR = /\b([a-zA-ZÀ-ÿ]{3,10})(\d{1,2})['’](\d{2,4})\b/gi
 
 function normalizeWord(word: string): string {
   return word
@@ -81,6 +88,12 @@ function tryMonthNamePatterns(text: string): string | null {
     if (iso) return iso
   }
   for (const match of text.matchAll(MONTHNAME_DAY_YEAR)) {
+    const month = MONTH_MAP[normalizeWord(match[1])]
+    if (month === undefined) continue
+    const iso = toIso(parseInt(match[2], 10), month + 1, parseInt(match[3], 10))
+    if (iso) return iso
+  }
+  for (const match of text.matchAll(COMPACT_MONTHNAME_DAY_YEAR)) {
     const month = MONTH_MAP[normalizeWord(match[1])]
     if (month === undefined) continue
     const iso = toIso(parseInt(match[2], 10), month + 1, parseInt(match[3], 10))
